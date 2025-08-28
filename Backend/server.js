@@ -16,6 +16,13 @@ const app = express();
 // Middleware
 app.use(express.json());
 
+app.use('/api/events', require('./routes/eventRoutes'));
+app.use('/api/event-patients', require('./routes/eventPatientRoutes'));
+app.use('/api/event-registrations', require('./routes/eventRegistrationRoutes'));
+app.use('/api/lab-tests', require('./routes/labTestResultRoutes'));
+app.use('/api/eventLabNotifications', require('./routes/eventLabNotificationRoutes'));
+app.use('/api/users', require('./routes/userRoutes'));
+
 
 
 
