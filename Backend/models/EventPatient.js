@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
 
-const PatientSchema = new mongoose.Schema(
+const EventPatientSchema = new mongoose.Schema(
   {
+    patient_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     name: { type: String, required: true, trim: true },
     nic: { type: String, required: true, unique: true, trim: true },
-    gender: { type: String, enum: ['Male', 'Female', 'Other'], default: 'Other' },
+    gender: { type: String, enum: ['Male', 'Female']},
     age: { type: Number, min: 0, max: 120, required: true },
     contact: { type: String, required: true, trim: true },
     email: { type: String, trim: true, lowercase: true },
@@ -16,4 +17,4 @@ const PatientSchema = new mongoose.Schema(
 PatientSchema.index({ nic: 1 }, { unique: true });
 PatientSchema.index({ name: 'text', email: 'text', address: 'text' });
 
-module.exports = mongoose.model('Patient', PatientSchema);
+module.exports = mongoose.model('EventPatient', EventPatientSchema);

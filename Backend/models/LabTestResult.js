@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const LabTestResultSchema = new mongoose.Schema(
   {
-    user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient', required: true },
+    user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     testOrEvent_name: { type: String, required: true, trim: true },
     file_path: { type: String, required: true }, // path or URL to uploaded report
     uploaded_at: { type: Date, default: Date.now },
