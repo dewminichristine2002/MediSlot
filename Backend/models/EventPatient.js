@@ -14,7 +14,7 @@ const EventPatientSchema = new mongoose.Schema(
   { timestamps: { createdAt: 'created_at', updatedAt: false } }
 );
 
-PatientSchema.index({ nic: 1 }, { unique: true });
-PatientSchema.index({ name: 'text', email: 'text', address: 'text' });
+EventPatientSchema.index({ nic: 1 }, { unique: true });
+EventPatientSchema.index({ name: 'text', email: 'text', address: 'text' });
 
 module.exports = mongoose.model('EventPatient', EventPatientSchema);

@@ -16,6 +16,6 @@ const EventRegistrationSchema = new mongoose.Schema(
 );
 
 // one patient should not have duplicate active registrations for same event
-RegistrationSchema.index({ event_id: 1, patient_id: 1 }, { unique: true });
+EventRegistrationSchema.index({ event_id: 1, patient_id: 1 }, { unique: true });
 
 module.exports = mongoose.model('EventRegistration', EventRegistrationSchema);
