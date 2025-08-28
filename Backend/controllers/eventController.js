@@ -80,17 +80,23 @@ exports.getEvents = async (req, res) => {
 exports.getEventById = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid id' });
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: 'Invalid id' });
+    }
 
-    const event = await Event.findById(id);
+    // lean() so we can spread a plain object
+    const event = await Event.findById(id).lean();
     if (!event) return res.status(404).json({ message: 'Event not found' });
 
-    return res.json(event);
+    const slots_remaining = Math.max(0, (event.slots_total || 0) - (event.slots_filled || 0));
+
+    return res.json({ ...event, slots_remaining });
   } catch (err) {
     console.error('getEventById error:', err);
     return res.status(500).json({ message: 'Failed to fetch event', error: err.message });
   }
 };
+
 
 // PATCH /api/events/:id
 exports.updateEvent = async (req, res) => {
@@ -139,7 +145,7 @@ exports.deleteEvent = async (req, res) => {
 };
 
 // POST /api/events/:id/register  (reserve one slot)
-exports.registerToEvent = async (req, res) => {
+/*exports.registerToEvent = async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid id' });
@@ -159,10 +165,10 @@ exports.registerToEvent = async (req, res) => {
     console.error('registerToEvent error:', err);
     return res.status(500).json({ message: 'Failed to register', error: err.message });
   }
-};
+};*/
 
 // POST /api/events/:id/cancel  (release one slot)
-exports.cancelRegistration = async (req, res) => {
+/*exports.cancelRegistration = async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid id' });
@@ -182,7 +188,7 @@ exports.cancelRegistration = async (req, res) => {
     console.error('cancelRegistration error:', err);
     return res.status(500).json({ message: 'Failed to cancel registration', error: err.message });
   }
-};
+};*/
 
 // GET /api/events/upcoming  (next N days)
 exports.getUpcoming = async (req, res) => {

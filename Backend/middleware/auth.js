@@ -2,6 +2,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+// Verify JWT and attach req.user (sans password)
 exports.protect = async (req, res, next) => {
   try {
     const header = req.headers.authorization || '';
@@ -19,6 +20,7 @@ exports.protect = async (req, res, next) => {
   }
 };
 
+// Gate by role(s)
 exports.requireRole = (...roles) => (req, res, next) => {
   if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
   if (!roles.includes(req.user.user_category)) {

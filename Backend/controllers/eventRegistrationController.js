@@ -3,209 +3,456 @@ const mongoose = require('mongoose');
 const EventRegistration = require('../models/EventRegistration');
 const Event = require('../models/Event');
 
-// Build filters for list endpoint
-function buildFilters(q) {
-  const f = {};
-  if (q.event_id && mongoose.isValidObjectId(q.event_id)) f.event_id = q.event_id;
-  if (q.patient_id && mongoose.isValidObjectId(q.patient_id)) f.patient_id = q.patient_id;
-  if (q.status) f.status = q.status; // confirmed|waitlist|cancelled|attended
-  if (q.from || q.to) {
-    f.registered_at = {};
-    if (q.from) f.registered_at.$gte = new Date(q.from);
-    if (q.to) f.registered_at.$lte = new Date(q.to);
+const isValidId = (id) => mongoose.isValidObjectId(id);
+
+// ---------- helpers ----------
+async function adjustEventSlots(eventId, fromStatus, toStatus, session) {
+  const occupies = (s) => s === 'confirmed';
+  if (occupies(fromStatus) === occupies(toStatus)) return;
+
+  const inc = occupies(toStatus) ? 1 : -1;
+
+  const updated = await Event.findByIdAndUpdate(
+    eventId,
+    { $inc: { slots_filled: inc } },
+    { new: true, session }
+  );
+
+  if (!updated) {
+    const e = new Error('Event not found when adjusting slots');
+    e.http = 404;
+    throw e;
   }
-  return f;
+
+  if (updated.slots_filled < 0 || updated.slots_filled > updated.slots_total) {
+    // revert to keep data consistent
+    await Event.findByIdAndUpdate(eventId, { $inc: { slots_filled: -inc } }, { session });
+    const e = new Error('Invalid slots state detected');
+    e.http = 409;
+    throw e;
+  }
 }
 
-// POST /api/event-registrations
-// Auto-place on waitlist if event is full; otherwise confirm and increment slots_filled.
-exports.register = async (req, res) => {
+/**
+ * Promote the oldest waitlisted registration to confirmed if capacity exists.
+ * Returns the promoted registration document or null if none.
+ */
+async function promoteFromWaitlist(eventId, session) {
+  // Check remaining capacity
+  const event = await Event.findById(eventId).session(session);
+  if (!event) return null;
+
+  const remaining = Math.max(0, (event.slots_total || 0) - (event.slots_filled || 0));
+  if (remaining <= 0) return null;
+
+  // Pick the oldest waitlisted registration (FIFO by registered_at)
+  const waitlisted = await EventRegistration.findOneAndUpdate(
+    { event_id: eventId, status: 'waitlist' },
+    { $set: { status: 'confirmed' } },
+    {
+      new: true,
+      session,
+      sort: { registered_at: 1 }, // oldest first
+    }
+  );
+
+  if (!waitlisted) return null;
+
+  // Consume a slot for the promoted person
+  await adjustEventSlots(eventId, null, 'confirmed', session);
+
+  return waitlisted;
+}
+
+/**
+ * Compute waitlist position (1-based) for a waitlisted registration.
+ * FIFO by registered_at, tie-broken by _id.
+ */
+async function computeWaitlistPosition(eventId, registeredAt, regId) {
+  const ahead = await EventRegistration.countDocuments({
+    event_id: eventId,
+    status: 'waitlist',
+    $or: [
+      { registered_at: { $lt: registeredAt } },
+      { registered_at: registeredAt, _id: { $lt: regId } }, // tie-breaker
+    ],
+  });
+  return ahead + 1;
+}
+
+// ---------- create: self ----------
+// POST /api/event-registrations/events/:eventId/register
+exports.createForSelf = async (req, res) => {
   const session = await mongoose.startSession();
   try {
-    const { event_id, patient_id } = req.body;
-    if (!mongoose.isValidObjectId(event_id) || !mongoose.isValidObjectId(patient_id)) {
-      return res.status(400).json({ message: 'Invalid event_id or patient_id' });
+    const event_id = req.params.eventId;
+    const patient_id = req.user?._id;
+
+    if (!isValidId(event_id)) return res.status(400).json({ message: 'Invalid event_id' });
+    if (!isValidId(patient_id)) return res.status(400).json({ message: 'Invalid patient_id' });
+
+    const { name, nic, gender, age, contact, email, address, qr_code } = req.body;
+    if (!name || !nic || age == null || !contact) {
+      return res.status(400).json({ message: 'name, nic, age, contact are required' });
     }
 
-    // Prevent duplicates early (also enforced by unique index)
-    const existing = await EventRegistration.findOne({ event_id, patient_id });
-    if (existing) {
-      return res.status(409).json({ message: 'Already registered for this event', registration: existing });
+    session.startTransaction();
+
+    const event = await Event.findById(event_id).session(session);
+    if (!event) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: 'Event not found' });
     }
 
-    await session.withTransaction(async () => {
-      const event = await Event.findById(event_id).session(session);
-      if (!event) throw new Error('Event not found');
+    const finalStatus = event.slots_filled < event.slots_total ? 'confirmed' : 'waitlist';
 
-      let status = 'waitlist';
+    const [reg] = await EventRegistration.create([{
+      event_id,
+      patient_id,
+      name, nic, gender, age, contact, email, address,
+      qr_code: qr_code || '',
+      status: finalStatus,
+    }], { session });
 
-      // Try to atomically grab a slot
-      if (event.slots_filled < event.slots_total) {
-        const updated = await Event.findOneAndUpdate(
-          { _id: event_id, slots_filled: { $lt: event.slots_total } },
-          { $inc: { slots_filled: 1 } },
-          { new: true, session }
-        );
-        if (updated) status = 'confirmed';
-      }
+    if (finalStatus === 'confirmed') {
+      await adjustEventSlots(event_id, null, 'confirmed', session);
+    }
 
-      const reg = await EventRegistration.create([{ ...req.body, status }], { session });
-      return res.status(201).json(reg[0]);
-    });
+    await session.commitTransaction();
+
+    const saved = await EventRegistration.findById(reg._id);
+    let payload = saved.toObject();
+    if (saved.status === 'waitlist') {
+      payload.waitlist_position = await computeWaitlistPosition(saved.event_id, saved.registered_at, saved._id);
+    }
+    return res.status(201).json(payload);
   } catch (err) {
-    if (err?.code === 11000) {
-      return res.status(409).json({ message: 'Duplicate registration for this event' });
-    }
-    return res.status(400).json({ message: 'Failed to register', error: err.message });
+    await session.abortTransaction();
+    if (err?.code === 11000) return res.status(409).json({ message: 'Already registered for this event.' });
+    const http = err.http || 500;
+    return res.status(http).json({ message: err.message || 'Server error' });
   } finally {
     session.endSession();
   }
 };
 
-// GET /api/event-registrations
-exports.list = async (req, res) => {
+// ---------- create: admin ----------
+// POST /api/event-registrations/events/:eventId/register/:patientId
+exports.createForPatient = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
-    const page = Math.max(parseInt(req.query.page || '1', 10), 1);
-    const limit = Math.min(Math.max(parseInt(req.query.limit || '10', 10), 1), 100);
-    const skip = (page - 1) * limit;
+    const event_id = req.params.eventId;
+    const patient_id = req.params.patientId;
 
-    const filters = buildFilters(req.query);
-    const sortField = ['registered_at', 'updated_at', 'status'].includes(req.query.sort) ? req.query.sort : 'registered_at';
-    const sortOrder = req.query.order === 'asc' ? 1 : -1;
+    if (!isValidId(event_id)) return res.status(400).json({ message: 'Invalid event_id' });
+    if (!isValidId(patient_id)) return res.status(400).json({ message: 'Invalid patient_id' });
 
-    const [items, total] = await Promise.all([
-      EventRegistration.find(filters)
-        .sort({ [sortField]: sortOrder })
-        .skip(skip)
-        .limit(limit)
-        .populate('event_id', 'name date time location')
-        .populate('patient_id', 'name email contact'),
-      EventRegistration.countDocuments(filters),
-    ]);
+    const { name, nic, gender, age, contact, email, address, qr_code, status } = req.body;
+    if (!name || !nic || age == null || !contact) {
+      return res.status(400).json({ message: 'name, nic, age, contact are required' });
+    }
 
-    res.json({ page, limit, total, pages: Math.ceil(total / limit), items });
+    session.startTransaction();
+
+    const event = await Event.findById(event_id).session(session);
+    if (!event) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    let finalStatus = status;
+    if (!finalStatus) {
+      finalStatus = event.slots_filled < event.slots_total ? 'confirmed' : 'waitlist';
+    }
+
+    const [reg] = await EventRegistration.create([{
+      event_id,
+      patient_id,
+      name, nic, gender, age, contact, email, address,
+      qr_code: qr_code || '',
+      status: finalStatus,
+    }], { session });
+
+    if (finalStatus === 'confirmed') {
+      await adjustEventSlots(event_id, null, 'confirmed', session);
+    }
+
+    await session.commitTransaction();
+
+    const saved = await EventRegistration.findById(reg._id);
+    let payload = saved.toObject();
+    if (saved.status === 'waitlist') {
+      payload.waitlist_position = await computeWaitlistPosition(saved.event_id, saved.registered_at, saved._id);
+    }
+    return res.status(201).json(payload);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch registrations', error: err.message });
+    await session.abortTransaction();
+    if (err?.code === 11000) return res.status(409).json({ message: 'Already registered for this event.' });
+    const http = err.http || 500;
+    return res.status(http).json({ message: err.message || 'Server error' });
+  } finally {
+    session.endSession();
   }
 };
 
-// GET /api/event-registrations/:id
-exports.getById = async (req, res) => {
+// ---------- CANCEL (auto-promote waitlist) ----------
+// PATCH /api/event-registrations/:id/cancel
+exports.cancelRegistration = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
-    const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid id' });
+    session.startTransaction();
 
-    const doc = await EventRegistration.findById(id)
-      .populate('event_id', 'name date time location slots_total slots_filled')
-      .populate('patient_id', 'name email contact');
-    if (!doc) return res.status(404).json({ message: 'Registration not found' });
+    const reg = await EventRegistration.findById(req.params.id).session(session);
+    if (!reg) { await session.abortTransaction(); return res.status(404).json({ message: 'Registration not found' }); }
 
-    res.json(doc);
+    if (reg.status !== 'cancelled') {
+      // Free slot if it was confirmed
+      await adjustEventSlots(reg.event_id, reg.status, 'cancelled', session);
+
+      reg.status = 'cancelled';
+      await reg.save({ session });
+
+      // Try to promote the oldest waitlisted
+      await promoteFromWaitlist(reg.event_id, session);
+    }
+
+    await session.commitTransaction();
+    return res.json(reg);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch registration', error: err.message });
+    await session.abortTransaction();
+    const http = err.http || 500;
+    return res.status(http).json({ message: err.message || 'Server error' });
+  } finally {
+    session.endSession();
   }
 };
 
+// ---------- update status (auto-promote if freeing a slot) ----------
 // PATCH /api/event-registrations/:id/status
-// Allowed transitions: confirmed -> cancelled/attended, waitlist -> confirmed/cancelled
+// Body: { status: 'confirmed'|'waitlist'|'cancelled'|'attended' }
 exports.updateStatus = async (req, res) => {
   const session = await mongoose.startSession();
   try {
-    const { id } = req.params;
     const { status } = req.body;
-    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid id' });
     if (!['confirmed', 'waitlist', 'cancelled', 'attended'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
 
-    await session.withTransaction(async () => {
-      const reg = await EventRegistration.findById(id).session(session);
-      if (!reg) return res.status(404).json({ message: 'Registration not found' });
+    session.startTransaction();
 
-      if (reg.status === status) return res.status(200).json(reg); // no-op
+    const reg = await EventRegistration.findById(req.params.id).session(session);
+    if (!reg) { await session.abortTransaction(); return res.status(404).json({ message: 'Registration not found' }); }
 
-      // Handle capacity counts
-      if (reg.status !== 'confirmed' && status === 'confirmed') {
-        // Promote to confirmed -> need free slot
-        const updatedEvent = await Event.findOneAndUpdate(
-          { _id: reg.event_id, slots_filled: { $lt: '$slots_total' } }, // this $ reference does not work; use local fetch
-          {},
-          { new: true, session }
-        );
-        // The above query can't compare against $slots_total directly; do manual check
-        const ev = updatedEvent || (await Event.findById(reg.event_id).session(session));
-        if (!ev) return res.status(404).json({ message: 'Event not found' });
-        if (ev.slots_filled >= ev.slots_total) {
-          return res.status(409).json({ message: 'Event is full; cannot confirm' });
-        }
-        await Event.updateOne({ _id: ev._id }, { $inc: { slots_filled: 1 } }, { session });
-      }
+    const prev = reg.status;
+    reg.status = status;
+    await reg.save({ session });
 
-      if (reg.status === 'confirmed' && (status === 'cancelled' || status === 'waitlist')) {
-        await Event.updateOne({ _id: reg.event_id }, { $inc: { slots_filled: -1 } }, { session });
-      }
+    // Adjust slots for this change
+    await adjustEventSlots(reg.event_id, prev, status, session);
 
-      reg.status = status;
-      await reg.save({ session });
+    // If we just freed a slot (prev was confirmed and new isn't), promote
+    const prevOccupied = prev === 'confirmed';
+    const nowOccupied = status === 'confirmed';
+    if (prevOccupied && !nowOccupied) {
+      await promoteFromWaitlist(reg.event_id, session);
+    }
 
-      return res.status(200).json(reg);
-    });
+    await session.commitTransaction();
+    res.json(reg);
   } catch (err) {
-    return res.status(400).json({ message: 'Failed to update status', error: err.message });
+    await session.abortTransaction();
+    const http = err.http || 500;
+    res.status(http).json({ message: err.message || 'Server error' });
   } finally {
     session.endSession();
   }
 };
 
-// POST /api/event-registrations/:id/cancel  (shortcut)
-exports.cancel = async (req, res) => {
-  req.body.status = 'cancelled';
-  return exports.updateStatus(req, res);
-};
-
-// POST /api/event-registrations/:id/checkin  -> mark attended
-exports.checkin = async (req, res) => {
-  req.body.status = 'attended';
-  return exports.updateStatus(req, res);
-};
-
+// ---------- delete (free slot if confirmed, then promote) ----------
 // DELETE /api/event-registrations/:id
-// If a confirmed registration is deleted, free the slot and try to promote first waitlisted person.
-exports.remove = async (req, res) => {
+exports.deleteRegistration = async (req, res) => {
   const session = await mongoose.startSession();
   try {
-    const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid id' });
+    session.startTransaction();
 
-    await session.withTransaction(async () => {
-      const reg = await EventRegistration.findById(id).session(session);
-      if (!reg) return res.status(404).json({ message: 'Registration not found' });
+    const reg = await EventRegistration.findById(req.params.id).session(session);
+    if (!reg) { await session.abortTransaction(); return res.status(404).json({ message: 'Registration not found' }); }
 
-      const eventId = reg.event_id;
-      const wasConfirmed = reg.status === 'confirmed';
+    const wasConfirmed = reg.status === 'confirmed';
 
-      await EventRegistration.deleteOne({ _id: id }, { session });
+    await EventRegistration.deleteOne({ _id: reg._id }).session(session);
 
-      if (wasConfirmed) {
-        // Free one slot
-        await Event.updateOne({ _id: eventId }, { $inc: { slots_filled: -1 } }, { session });
+    if (wasConfirmed) {
+      // Free one slot and then promote if possible
+      await adjustEventSlots(reg.event_id, 'confirmed', null, session);
+      await promoteFromWaitlist(reg.event_id, session);
+    }
 
-        // Promote earliest waitlisted person (FIFO by registered_at)
-        const next = await EventRegistration.findOneAndUpdate(
-          { event_id: eventId, status: 'waitlist' },
-          { status: 'confirmed' },
-          { sort: { registered_at: 1 }, new: true, session }
-        );
-        if (next) {
-          await Event.updateOne({ _id: eventId }, { $inc: { slots_filled: 1 } }, { session });
-        }
-      }
-
-      return res.json({ message: 'Registration deleted' });
-    });
+    await session.commitTransaction();
+    res.json({ message: 'Registration deleted' });
   } catch (err) {
-    return res.status(500).json({ message: 'Failed to delete registration', error: err.message });
+    await session.abortTransaction();
+    const http = err.http || 500;
+    res.status(http).json({ message: err.message || 'Server error' });
   } finally {
     session.endSession();
+  }
+};
+
+// ---------- reads ----------
+exports.getById = async (req, res) => {
+  try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: 'Invalid id' });
+    const reg = await EventRegistration.findById(req.params.id);
+    if (!reg) return res.status(404).json({ message: 'Not found' });
+
+    let payload = reg.toObject();
+    if (reg.status === 'waitlist') {
+      payload.waitlist_position = await computeWaitlistPosition(reg.event_id, reg.registered_at, reg._id);
+    }
+    res.json(payload);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+// GET /api/event-registrations?event_id=...&patient_id=...
+exports.list = async (req, res) => {
+  try {
+    const f = {};
+    if (req.query.event_id && isValidId(req.query.event_id)) f.event_id = req.query.event_id;
+    if (req.query.patient_id && isValidId(req.query.patient_id)) f.patient_id = req.query.patient_id;
+
+    const items = await EventRegistration.find(f).sort({ registered_at: 1 }); // ascending helps see queue
+
+    const withPos = await Promise.all(items.map(async (doc) => {
+      const o = doc.toObject();
+      if (o.status === 'waitlist') {
+        o.waitlist_position = await computeWaitlistPosition(o.event_id, o.registered_at, o._id);
+      }
+      return o;
+    }));
+
+    res.json(withPos);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+// ---------- events by user (ADMIN + SELF) ----------
+// GET /api/event-registrations/events-by-user/:userId
+exports.listEventsByUserId = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!isValidId(userId)) return res.status(400).json({ message: 'Invalid userId' });
+
+    // Optional query params
+    const page  = Math.max(parseInt(req.query.page  || '1', 10), 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit || '10', 10), 1), 100);
+    const skip  = (page - 1) * limit;
+
+    const statusFilter = (req.query.status || '').trim(); // confirmed | waitlist | cancelled | attended
+    const when = (req.query.when || 'all').toLowerCase(); // upcoming | past | all
+    const sortField = (req.query.sort || 'event.date');   // 'event.date' | 'registered_at'
+    const sortOrder = req.query.order === 'asc' ? 1 : -1;
+
+    const regMatch = { patient_id: new mongoose.Types.ObjectId(userId) };
+    if (['confirmed','waitlist','cancelled','attended'].includes(statusFilter)) {
+      regMatch.status = statusFilter;
+    }
+
+    const now = new Date();
+    const eventWhenMatch =
+      when === 'upcoming' ? { 'event.date': { $gte: now } } :
+      when === 'past'     ? { 'event.date': { $lt: now } } : {};
+
+    const pipeline = [
+      { $match: regMatch },
+      {
+        $lookup: {
+          from: 'events',
+          localField: 'event_id',
+          foreignField: '_id',
+          as: 'event'
+        }
+      },
+      { $unwind: '$event' },
+      ...(Object.keys(eventWhenMatch).length ? [{ $match: eventWhenMatch }] : []),
+      { $sort: { [sortField]: sortOrder } },
+      {
+        $facet: {
+          items: [
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $project: {
+                _id: 0,
+                registration_id: '$_id',
+                registration_status: '$status',
+                registered_at: '$registered_at',
+                qr_code: '$qr_code',
+                event_id: '$event._id',
+                event_name: '$event.name',
+                event_date: '$event.date',
+                event_time: '$event.time',
+                event_location: '$event.location',
+                slots_total: '$event.slots_total',
+                slots_filled: '$event.slots_filled',
+                slots_remaining: {
+                  $max: [
+                    { $subtract: ['$event.slots_total', '$event.slots_filled'] },
+                    0
+                  ]
+                }
+              }
+            }
+          ],
+          total: [{ $count: 'count' }]
+        }
+      }
+    ];
+
+    const agg = await EventRegistration.aggregate(pipeline);
+    const items = agg[0]?.items || [];
+    const total = agg[0]?.total?.[0]?.count || 0;
+
+    // Add waitlist_position for waitlisted registrations
+    const itemsWithPos = await Promise.all(items.map(async (it) => {
+      if (it.registration_status === 'waitlist') {
+        const pos = await computeWaitlistPosition(
+          it.event_id,
+          new Date(it.registered_at),
+          new mongoose.Types.ObjectId(it.registration_id)
+        );
+        return { ...it, waitlist_position: pos };
+      }
+      return it;
+    }));
+
+    return res.json({
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+      items: itemsWithPos
+    });
+  } catch (err) {
+    console.error('listEventsByUserId error:', err);
+    return res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+// GET /api/event-registrations/events-by-user/me
+exports.listMyEvents = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    // Reuse the admin handler with current user id
+    req.params.userId = userId.toString();
+    return exports.listEventsByUserId(req, res);
+  } catch (err) {
+    console.error('listMyEvents error:', err);
+    return res.status(500).json({ message: 'Server error', error: err.message });
   }
 };

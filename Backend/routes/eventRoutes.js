@@ -12,7 +12,7 @@ router.patch('/:id', ctrl.updateEvent);
 router.delete('/:id', ctrl.deleteEvent);
 
 // Capacity helpers
-router.post('/:id/register', ctrl.registerToEvent);
-router.post('/:id/cancel', ctrl.cancelRegistration);
+//router.post('/:id/register', ctrl.registerToEvent);
+//router.post('/:id/cancel', ctrl.cancelRegistration);
 
 module.exports = router;
