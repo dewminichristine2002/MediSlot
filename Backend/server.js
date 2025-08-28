@@ -15,7 +15,23 @@ const app = express();
 
 // Middleware
 app.use(express.json());
+app.use(cors());
 
+// ===== Routes =====
+app.use("/api/centers", require("./routes/centers.routes"));
+app.use("/api/tests", require("./routes/tests.routes"));
+app.use("/api/center-services", require("./routes/centerService.routes"));
+
+// Root endpoint (for quick check)
+app.get("/", (req, res) => {
+  res.send("API is running ✅");
+});
+
+// ===== Error handler =====
+app.use((err, req, res, next) => {
+  console.error("Error:", err.stack);
+  res.status(500).json({ error: "Server error" });
+});
 
 
 
