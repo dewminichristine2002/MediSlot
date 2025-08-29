@@ -27,10 +27,8 @@ export default function EventRegisterScreen() {
   const navigation = useNavigation();
   const event = route.params?.event;
 
-  // Your AuthContext (as pasted) only exposes { user, loading, signIn, signOut }
   const { user, loading: authLoading } = useAuth();
 
-  // Load token directly from AsyncStorage so we can call the API
   const [token, setToken] = useState(null);
   const [tokenLoading, setTokenLoading] = useState(true);
   useEffect(() => {
@@ -69,6 +67,21 @@ export default function EventRegisterScreen() {
     defaultValues,
   });
 
+  // NEW: helper to append a registration locally so Profile can render a QR even
+  // if the backend "my registrations" endpoint isn't ready yet.
+  async function saveRegistrationLocally(reg) {
+    try {
+      const key = "my_event_regs";
+      const existing = await AsyncStorage.getItem(key);
+      const list = existing ? JSON.parse(existing) : [];
+      // push newest first
+      list.unshift(reg);
+      await AsyncStorage.setItem(key, JSON.stringify(list.slice(0, 50))); // cap to 50
+    } catch (e) {
+      console.warn("Failed to save local registration:", e);
+    }
+  }
+
   const onSubmit = async (values) => {
     if (!event?._id) {
       Alert.alert("Error", "Missing event id.");
@@ -91,7 +104,7 @@ export default function EventRegisterScreen() {
           },
           body: JSON.stringify({
             ...values,
-            patient_id: user?._id || null, // optional: send user id too
+            patient_id: user?._id || null,
           }),
         }
       );
@@ -101,12 +114,69 @@ export default function EventRegisterScreen() {
         throw new Error(data?.message || "Registration failed");
       }
 
+      // The backend may return your new registration as `data.registration` or directly as the document.
+      const reg =
+        data?.registration ||
+        data?.doc ||
+        data;
+
+      // Build a QR payload (keep it small but meaningful).
+      // Scanners (your admin app) can decode this JSON.
+      const qrPayload = {
+        t: "event_reg",                   // type
+        regId: reg?._id,                  // registration id
+        eventId: event._id,               // event id
+        userId: user?._id,                // optional
+        name: values.name,                // for quick human check at scan
+        nic: values.nic,                  // quick check
+        ts: Date.now(),                   // timestamp
+      };
+      const qrString = JSON.stringify(qrPayload);
+
+      // Prepare a compact object for Profile listing
+      const localReg = {
+        _id: reg?._id,
+        status: reg?.status || data?.status || "confirmed",
+        waitlist_position: reg?.waitlist_position ?? data?.waitlist_position ?? null,
+        event: {
+          _id: event._id,
+          name: event.name,
+          date: event.date,
+          time: event.time,
+          location: event.location,
+        },
+        patient: {
+          _id: user?._id,
+          name: values.name,
+          nic: values.nic,
+          gender: values.gender || null,
+          age: values.age || null,
+          contact: values.contact,
+          email: values.email || "",
+          address: values.address || "",
+        },
+        // NEW: store QR data string to be rendered as QR in Profile
+        qrString,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Save to local storage so Profile can render it
+      await saveRegistrationLocally(localReg);
+
       const msg =
-        data.status === "waitlist"
-          ? `You are added to the waitlist.\nPosition: ${data.waitlist_position ?? "TBD"}`
+        (reg?.status || data.status) === "waitlist"
+          ? `You are added to the waitlist.\nPosition: ${reg?.waitlist_position ?? data?.waitlist_position ?? "TBD"}`
           : "Registration confirmed!";
 
       Alert.alert("Success", msg, [
+        {
+          text: "View in Profile",
+          onPress: () => {
+            reset(defaultValues);
+            // Navigate to Profile so the user immediately sees the QR
+            navigation.navigate("Profile"); // make sure your navigator has this route name
+          },
+        },
         {
           text: "OK",
           onPress: () => {
@@ -122,7 +192,6 @@ export default function EventRegisterScreen() {
     }
   };
 
-  // While restoring session or token, avoid showing "not logged in"
   if (authLoading || tokenLoading) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
