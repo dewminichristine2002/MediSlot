@@ -1,5 +1,6 @@
 // controllers/eventRegistrationController.js
 const mongoose = require('mongoose');
+const QRCode = require('qrcode');
 const EventRegistration = require('../models/EventRegistration');
 const Event = require('../models/Event');
 
@@ -25,7 +26,6 @@ async function adjustEventSlots(eventId, fromStatus, toStatus, session) {
   }
 
   if (updated.slots_filled < 0 || updated.slots_filled > updated.slots_total) {
-    // revert to keep data consistent
     await Event.findByIdAndUpdate(eventId, { $inc: { slots_filled: -inc } }, { session });
     const e = new Error('Invalid slots state detected');
     e.http = 409;
@@ -33,41 +33,27 @@ async function adjustEventSlots(eventId, fromStatus, toStatus, session) {
   }
 }
 
-/**
- * Promote the oldest waitlisted registration to confirmed if capacity exists.
- * Returns the promoted registration document or null if none.
- */
+/** Promote the oldest waitlisted registration to confirmed if capacity exists. */
 async function promoteFromWaitlist(eventId, session) {
-  // Check remaining capacity
   const event = await Event.findById(eventId).session(session);
   if (!event) return null;
 
   const remaining = Math.max(0, (event.slots_total || 0) - (event.slots_filled || 0));
   if (remaining <= 0) return null;
 
-  // Pick the oldest waitlisted registration (FIFO by registered_at)
   const waitlisted = await EventRegistration.findOneAndUpdate(
     { event_id: eventId, status: 'waitlist' },
     { $set: { status: 'confirmed' } },
-    {
-      new: true,
-      session,
-      sort: { registered_at: 1 }, // oldest first
-    }
+    { new: true, session, sort: { registered_at: 1 } }
   );
 
   if (!waitlisted) return null;
 
-  // Consume a slot for the promoted person
   await adjustEventSlots(eventId, null, 'confirmed', session);
-
   return waitlisted;
 }
 
-/**
- * Compute waitlist position (1-based) for a waitlisted registration.
- * FIFO by registered_at, tie-broken by _id.
- */
+/** Compute waitlist position (1-based) for a waitlisted registration. */
 async function computeWaitlistPosition(eventId, registeredAt, regId) {
   const ahead = await EventRegistration.countDocuments({
     event_id: eventId,
@@ -78,6 +64,44 @@ async function computeWaitlistPosition(eventId, registeredAt, regId) {
     ],
   });
   return ahead + 1;
+}
+
+/** Payload to embed in QR (not trusted on scan; we fetch fresh by id). */
+function buildQrPayload({ reg, event, patient }) {
+  return {
+    type: 'event.registration',
+    registration_id: reg._id.toString(),
+    event: {
+      id: event._id.toString(),
+      name: event.name,
+      date: event.date,
+      time: event.time,
+      location: event.location,
+    },
+    patient: {
+      id: patient._id ? patient._id.toString() : undefined,
+      name: patient.name,
+      nic: patient.nic,
+      gender: patient.gender,
+      age: patient.age,
+      address: patient.address,
+      contact: patient.contact,
+      email: patient.email || null,
+    },
+    status: reg.status,
+    issued_at: new Date().toISOString(),
+  };
+}
+
+/** Create QR (PNG Data URL) from payload. */
+async function generateQrDataUrl(payload) {
+  const text = JSON.stringify(payload);
+  return QRCode.toDataURL(text, {
+    errorCorrectionLevel: 'M',
+    width: 320,
+    margin: 2,
+    type: 'image/png',
+  });
 }
 
 // ---------- create: self ----------
@@ -91,7 +115,7 @@ exports.createForSelf = async (req, res) => {
     if (!isValidId(event_id)) return res.status(400).json({ message: 'Invalid event_id' });
     if (!isValidId(patient_id)) return res.status(400).json({ message: 'Invalid patient_id' });
 
-    const { name, nic, gender, age, contact, email, address, qr_code } = req.body;
+    const { name, nic, gender, age, contact, email, address } = req.body;
     if (!name || !nic || age == null || !contact) {
       return res.status(400).json({ message: 'name, nic, age, contact are required' });
     }
@@ -110,9 +134,18 @@ exports.createForSelf = async (req, res) => {
       event_id,
       patient_id,
       name, nic, gender, age, contact, email, address,
-      qr_code: qr_code || '',
+      qr_code: '', // generate next
       status: finalStatus,
     }], { session });
+
+    const qrPayload = buildQrPayload({
+      reg,
+      event,
+      patient: { _id: patient_id, name, nic, gender, age, address, contact, email },
+    });
+    const qrDataUrl = await generateQrDataUrl(qrPayload);
+
+    await EventRegistration.findByIdAndUpdate(reg._id, { $set: { qr_code: qrDataUrl } }, { session });
 
     if (finalStatus === 'confirmed') {
       await adjustEventSlots(event_id, null, 'confirmed', session);
@@ -147,7 +180,7 @@ exports.createForPatient = async (req, res) => {
     if (!isValidId(event_id)) return res.status(400).json({ message: 'Invalid event_id' });
     if (!isValidId(patient_id)) return res.status(400).json({ message: 'Invalid patient_id' });
 
-    const { name, nic, gender, age, contact, email, address, qr_code, status } = req.body;
+    const { name, nic, gender, age, contact, email, address, status } = req.body;
     if (!name || !nic || age == null || !contact) {
       return res.status(400).json({ message: 'name, nic, age, contact are required' });
     }
@@ -160,18 +193,24 @@ exports.createForPatient = async (req, res) => {
       return res.status(404).json({ message: 'Event not found' });
     }
 
-    let finalStatus = status;
-    if (!finalStatus) {
-      finalStatus = event.slots_filled < event.slots_total ? 'confirmed' : 'waitlist';
-    }
+    const finalStatus = status || (event.slots_filled < event.slots_total ? 'confirmed' : 'waitlist');
 
     const [reg] = await EventRegistration.create([{
       event_id,
       patient_id,
       name, nic, gender, age, contact, email, address,
-      qr_code: qr_code || '',
+      qr_code: '',
       status: finalStatus,
     }], { session });
+
+    const qrPayload = buildQrPayload({
+      reg,
+      event,
+      patient: { _id: patient_id, name, nic, gender, age, address, contact, email },
+    });
+    const qrDataUrl = await generateQrDataUrl(qrPayload);
+
+    await EventRegistration.findByIdAndUpdate(reg._id, { $set: { qr_code: qrDataUrl } }, { session });
 
     if (finalStatus === 'confirmed') {
       await adjustEventSlots(event_id, null, 'confirmed', session);
@@ -206,13 +245,9 @@ exports.cancelRegistration = async (req, res) => {
     if (!reg) { await session.abortTransaction(); return res.status(404).json({ message: 'Registration not found' }); }
 
     if (reg.status !== 'cancelled') {
-      // Free slot if it was confirmed
       await adjustEventSlots(reg.event_id, reg.status, 'cancelled', session);
-
       reg.status = 'cancelled';
       await reg.save({ session });
-
-      // Try to promote the oldest waitlisted
       await promoteFromWaitlist(reg.event_id, session);
     }
 
@@ -247,10 +282,8 @@ exports.updateStatus = async (req, res) => {
     reg.status = status;
     await reg.save({ session });
 
-    // Adjust slots for this change
     await adjustEventSlots(reg.event_id, prev, status, session);
 
-    // If we just freed a slot (prev was confirmed and new isn't), promote
     const prevOccupied = prev === 'confirmed';
     const nowOccupied = status === 'confirmed';
     if (prevOccupied && !nowOccupied) {
@@ -283,7 +316,6 @@ exports.deleteRegistration = async (req, res) => {
     await EventRegistration.deleteOne({ _id: reg._id }).session(session);
 
     if (wasConfirmed) {
-      // Free one slot and then promote if possible
       await adjustEventSlots(reg.event_id, 'confirmed', null, session);
       await promoteFromWaitlist(reg.event_id, session);
     }
@@ -323,7 +355,7 @@ exports.list = async (req, res) => {
     if (req.query.event_id && isValidId(req.query.event_id)) f.event_id = req.query.event_id;
     if (req.query.patient_id && isValidId(req.query.patient_id)) f.patient_id = req.query.patient_id;
 
-    const items = await EventRegistration.find(f).sort({ registered_at: 1 }); // ascending helps see queue
+    const items = await EventRegistration.find(f).sort({ registered_at: 1 });
 
     const withPos = await Promise.all(items.map(async (doc) => {
       const o = doc.toObject();
@@ -346,14 +378,13 @@ exports.listEventsByUserId = async (req, res) => {
     const { userId } = req.params;
     if (!isValidId(userId)) return res.status(400).json({ message: 'Invalid userId' });
 
-    // Optional query params
     const page  = Math.max(parseInt(req.query.page  || '1', 10), 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit || '10', 10), 1), 100);
     const skip  = (page - 1) * limit;
 
-    const statusFilter = (req.query.status || '').trim(); // confirmed | waitlist | cancelled | attended
-    const when = (req.query.when || 'all').toLowerCase(); // upcoming | past | all
-    const sortField = (req.query.sort || 'event.date');   // 'event.date' | 'registered_at'
+    const statusFilter = (req.query.status || '').trim();
+    const when = (req.query.when || 'all').toLowerCase();
+    const sortField = (req.query.sort || 'event.date');
     const sortOrder = req.query.order === 'asc' ? 1 : -1;
 
     const regMatch = { patient_id: new mongoose.Types.ObjectId(userId) };
@@ -368,14 +399,7 @@ exports.listEventsByUserId = async (req, res) => {
 
     const pipeline = [
       { $match: regMatch },
-      {
-        $lookup: {
-          from: 'events',
-          localField: 'event_id',
-          foreignField: '_id',
-          as: 'event'
-        }
-      },
+      { $lookup: { from: 'events', localField: 'event_id', foreignField: '_id', as: 'event' } },
       { $unwind: '$event' },
       ...(Object.keys(eventWhenMatch).length ? [{ $match: eventWhenMatch }] : []),
       { $sort: { [sortField]: sortOrder } },
@@ -416,7 +440,6 @@ exports.listEventsByUserId = async (req, res) => {
     const items = agg[0]?.items || [];
     const total = agg[0]?.total?.[0]?.count || 0;
 
-    // Add waitlist_position for waitlisted registrations
     const itemsWithPos = await Promise.all(items.map(async (it) => {
       if (it.registration_status === 'waitlist') {
         const pos = await computeWaitlistPosition(
@@ -448,11 +471,68 @@ exports.listMyEvents = async (req, res) => {
     const userId = req.user?._id;
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
-    // Reuse the admin handler with current user id
     req.params.userId = userId.toString();
     return exports.listEventsByUserId(req, res);
   } catch (err) {
     console.error('listMyEvents error:', err);
+    return res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+// ---------- SCAN QR ----------
+// POST /api/event-registrations/scan
+// Body: { qr_text: "<JSON or id>" } OR { registration_id: "<ObjectId>" }
+exports.scanQr = async (req, res) => {
+  try {
+    const { qr_text, registration_id } = req.body || {};
+    let regId = registration_id;
+
+    if (!regId && qr_text) {
+      try {
+        const parsed = JSON.parse(qr_text);
+        if (parsed && parsed.type === 'event.registration' && parsed.registration_id) {
+          regId = parsed.registration_id;
+        } else if (typeof parsed === 'string') {
+          regId = parsed;
+        }
+      } catch {
+        if (typeof qr_text === 'string') regId = qr_text.trim();
+      }
+    }
+
+    if (!regId || !mongoose.isValidObjectId(regId)) {
+      return res.status(400).json({ message: 'Missing or invalid registration_id' });
+    }
+
+    const reg = await EventRegistration.findById(regId).lean();
+    if (!reg) return res.status(404).json({ message: 'Registration not found' });
+
+    const event = await Event.findById(reg.event_id).lean();
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+
+    let waitlist_position = null;
+    if (reg.status === 'waitlist') {
+      waitlist_position = await computeWaitlistPosition(reg.event_id, reg.registered_at, reg._id);
+    }
+
+    return res.json({
+      registration_id: reg._id.toString(),
+      event_id: event._id.toString(),
+      event_name: event.name,
+      event_date: event.date,
+      event_time: event.time,
+      patient_name: reg.name,
+      nic: reg.nic,
+      gender: reg.gender || null,
+      age: reg.age ?? null,
+      address: reg.address || null,
+      contact_number: reg.contact,
+      email: reg.email || null,
+      status: reg.status,
+      waitlist_position,
+    });
+  } catch (err) {
+    console.error('scanQr error:', err);
     return res.status(500).json({ message: 'Server error', error: err.message });
   }
 };

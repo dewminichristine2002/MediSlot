@@ -1,3 +1,4 @@
+// routes/eventRegistrationRoutes.js
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/eventRegistrationController');
@@ -14,7 +15,7 @@ router.get('/', protect, ctrl.list);
 // Update status
 router.patch('/:id/status', protect, requireRole('admin'), ctrl.updateStatus);
 
-// Cancel (owner or admin? if only admin, keep requireRole)
+// Cancel (only patients in this example; adjust as needed)
 router.patch('/:id/cancel', protect, requireRole('patient'), ctrl.cancelRegistration);
 
 // Delete
@@ -26,6 +27,7 @@ router.get('/events-by-user/me', protect, ctrl.listMyEvents);
 // Admin: events for a specific user
 router.get('/events-by-user/:userId', protect, requireRole('admin'), ctrl.listEventsByUserId);
 
-
+// Scan QR
+router.post('/scan', protect, ctrl.scanQr);
 
 module.exports = router;

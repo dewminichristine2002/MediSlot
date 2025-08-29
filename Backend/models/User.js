@@ -36,7 +36,7 @@ const UserSchema = new mongoose.Schema(
     user_category: {
       type: String,
       enum: ['patient', 'healthCenterAdmin', 'admin'], // add more as needed
-      required: true,
+      default: 'patient',
     },
   },
   {
