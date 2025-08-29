@@ -1,8 +1,11 @@
+// src/screens/LoginScreen.js
 import React, { useState } from 'react';
 import { View, Text, Alert, Pressable } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { CommonActions } from '@react-navigation/native';
+
 import FormTextInput from '../components/FormTextInput';
 import PrimaryButton from '../components/PrimaryButton';
 import { loginApi } from '../api/auth';
@@ -26,11 +29,31 @@ export default function LoginScreen({ navigation }) {
     try {
       setLoading(true);
       const { data } = await loginApi(values.email, values.password);
+
+      // update auth context
       await signIn({ token: data.token, user: data.user });
+
+      // 1) ensure Home tab is focused
+      navigation.getParent()?.navigate('HomeTab');
+
+      // 2) reset HomeStack so Login is removed from history
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'Home' }],
+        })
+      );
+
+      // Alternative (shorter):
+      // navigation.getParent()?.navigate('HomeTab');
+      // navigation.replace('Home');
+
     } catch (err) {
       const msg = err?.response?.data?.message || 'Login failed';
       Alert.alert('Error', msg);
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -68,7 +91,10 @@ export default function LoginScreen({ navigation }) {
 
       <PrimaryButton title="Login" onPress={handleSubmit(onSubmit)} loading={loading} />
 
-      <Pressable onPress={() => navigation.navigate('Register')} style={{ marginTop: 16, alignItems: 'center' }}>
+      <Pressable
+        onPress={() => navigation.navigate('Register')}
+        style={{ marginTop: 16, alignItems: 'center' }}
+      >
         <Text>
           New here? <Text style={{ color: '#2563eb', fontWeight: '700' }}>Create an account</Text>
         </Text>

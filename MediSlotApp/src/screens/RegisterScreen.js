@@ -1,8 +1,11 @@
+// src/screens/RegisterScreen.js
 import React, { useState } from 'react';
 import { View, Text, Alert, Pressable } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { CommonActions } from '@react-navigation/native';
+
 import FormTextInput from '../components/FormTextInput';
 import PrimaryButton from '../components/PrimaryButton';
 import { registerApi } from '../api/auth';
@@ -34,15 +37,36 @@ export default function RegisterScreen({ navigation }) {
 
   const onSubmit = async (values) => {
     const payload = { ...values };
-    delete payload.confirm; // never send confirm
+    delete payload.confirm;
+
     try {
       setLoading(true);
-      const { data } = await registerApi(payload); // no user_category sent
+      const { data } = await registerApi(payload);
+
+      // put user/token into auth context
       await signIn({ token: data.token, user: data.user });
+
+      // 1) switch to Home tab
+      navigation.getParent()?.navigate('HomeTab');
+
+      // 2) reset Home stack so there's no back to Register
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'Home' }],
+        })
+      );
+
+      // Alternative (shorter):
+      // navigation.getParent()?.navigate('HomeTab');
+      // navigation.replace('Home');
+
     } catch (err) {
       const msg = err?.response?.data?.message || 'Registration failed';
       Alert.alert('Error', msg);
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -15,7 +15,7 @@ export default function ProfileScreen() {
       <Text style={{ marginBottom: 6 }}>Role: {user?.user_category}</Text>
       <Text style={{ marginBottom: 20 }}>Address: {user?.address}</Text>
 
-      <PrimaryButton title="Sign out" onPress={signOut} />
+      
     </View>
   );
 }
