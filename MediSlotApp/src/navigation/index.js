@@ -15,6 +15,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import FreeEventsScreen from '../screens/FreeEventsScreen';
 import HealthCentersScreen from '../screens/HealthCentersScreen';
 import GuidelinesScreen from '../screens/GuidelinesScreen';
+import EventRegisterScreen from "../screens/EventRegisterScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -43,6 +44,12 @@ function FreeEventsStack() {
         name="FreeEvents"
         component={FreeEventsScreen}
         options={{ title: 'Free Events' }}
+      />
+      {/* ⬇️ NEW: register screen that FreeEvents can push to */}
+      <Stack.Screen
+        name="EventRegister"
+        component={EventRegisterScreen}
+        options={{ title: 'Register for Event' }}
       />
     </Stack.Navigator>
   );
@@ -103,10 +110,8 @@ function MainTabs() {
 /** ---------- Root ---------- */
 
 export default function RootNavigator() {
-  // If you want to hide tabs for logged-out users, you can still conditionally render,
-  // but usually the same tabs are fine and Login/Register live inside the Home stack.
   const { loading } = useAuth();
-  if (loading) return null; // show splash if you have one
+  if (loading) return null; // optionally show a splash while restoring auth
 
   return (
     <NavigationContainer>
