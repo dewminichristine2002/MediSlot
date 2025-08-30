@@ -1,14 +1,13 @@
 // src/screens/ProfileScreen.js
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, FlatList } from 'react-native';
-import PrimaryButton from '../components/PrimaryButton';
 import { useAuth } from '../context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
 import { getApiBaseUrl } from '../api/config';
 
 export default function ProfileScreen() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
 
   return (
     <View style={{ flex: 1, padding: 20, paddingTop: 60 }}>
@@ -19,8 +18,6 @@ export default function ProfileScreen() {
       <Text style={{ marginBottom: 6 }}>Role: {user?.user_category}</Text>
       <Text style={{ marginBottom: 20 }}>Address: {user?.address}</Text>
 
-      
-
       {/* Event registrations + QR codes */}
       <MyEventRegs />
     </View>
@@ -28,36 +25,77 @@ export default function ProfileScreen() {
 }
 
 function MyEventRegs() {
+  const { user } = useAuth(); // get logged-in user
+  const patientId = user?._id;
+
   const [loading, setLoading] = useState(true);
   const [regs, setRegs] = useState([]);
 
   useEffect(() => {
+    if (!patientId) {
+      setRegs([]);
+      setLoading(false);
+      return;
+    }
+
     (async () => {
       try {
         const t = await AsyncStorage.getItem('token');
+
         if (t) {
-          try {
-            const res = await fetch(`${getApiBaseUrl()}/api/event-registrations/mine`, {
-              headers: { Authorization: `Bearer ${t}` },
+          // Preferred: dedicated "mine" endpoint
+          let res = await fetch(
+            `${getApiBaseUrl()}/api/event-registrations/mine?patientId=${encodeURIComponent(patientId)}`,
+            { headers: { Authorization: `Bearer ${t}` } }
+          );
+
+          // Fallback: generic endpoint with query param if /mine isn't implemented
+          if (res.status === 404) {
+            res = await fetch(
+              `${getApiBaseUrl()}/api/event-registrations?patientId=${encodeURIComponent(patientId)}`,
+              { headers: { Authorization: `Bearer ${t}` } }
+            );
+          }
+
+          if (res.ok) {
+            const data = await res.json();
+            const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+
+            // Safety client-side filter
+            const mine = items.filter((r) => {
+              const pid = r?.patient?._id || r?.patient_id || r?.user?._id;
+              return pid === patientId;
             });
-            if (res.ok) {
-              const data = await res.json();
-              setRegs(data.items || []);
-              await AsyncStorage.setItem('my_event_regs', JSON.stringify(data.items || []));
-              setLoading(false);
-              return;
-            }
-          } catch (err) {
-            console.warn('Falling back to local regs:', err.message);
+
+            setRegs(mine);
+            await AsyncStorage.setItem('my_event_regs', JSON.stringify(mine));
+            setLoading(false);
+            return;
           }
         }
-        const local = await AsyncStorage.getItem('my_event_regs');
-        setRegs(local ? JSON.parse(local) : []);
+
+        // Offline / API error / no token ⇒ use cached, filtered
+        const localStr = await AsyncStorage.getItem('my_event_regs');
+        const local = localStr ? JSON.parse(localStr) : [];
+        const mineLocal = local.filter((r) => {
+          const pid = r?.patient?._id || r?.patient_id || r?.user?._id;
+          return pid === patientId;
+        });
+        setRegs(mineLocal);
+      } catch (err) {
+        console.warn('Loading registrations failed → using local cache:', err.message);
+        const localStr = await AsyncStorage.getItem('my_event_regs');
+        const local = localStr ? JSON.parse(localStr) : [];
+        const mineLocal = local.filter((r) => {
+          const pid = r?.patient?._id || r?.patient_id || r?.user?._id;
+          return pid === patientId;
+        });
+        setRegs(mineLocal);
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [patientId]);
 
   if (loading) {
     return (
@@ -83,7 +121,7 @@ function MyEventRegs() {
       </Text>
       <FlatList
         data={regs}
-        keyExtractor={(item) => item._id || Math.random().toString()}
+        keyExtractor={(item, idx) => item?._id ?? `reg-${idx}`}
         contentContainerStyle={{ gap: 12 }}
         renderItem={({ item }) => (
           <View style={styles.card}>
@@ -91,7 +129,8 @@ function MyEventRegs() {
               <Text style={styles.eventName}>{item?.event?.name || 'Event'}</Text>
               {!!item?.event?.date && (
                 <Text style={styles.meta}>
-                  {new Date(item.event.date).toLocaleDateString()} {item.event.time ? `at ${item.event.time}` : ''}
+                  {new Date(item.event.date).toLocaleDateString()}
+                  {item.event.time ? ` at ${item.event.time}` : ''}
                 </Text>
               )}
               {!!item?.event?.location && <Text style={styles.meta}>{item.event.location}</Text>}
@@ -104,7 +143,19 @@ function MyEventRegs() {
             </View>
 
             <View style={styles.qrBox}>
-              <QRCode value={item.qrString || JSON.stringify({ regId: item._id })} size={96} />
+              <QRCode
+                value={
+                  item.qrString
+                    ? item.qrString
+                    : JSON.stringify({
+                        t: 'event_reg',
+                        regId: item._id,
+                        eventId: item?.event?._id,
+                        userId: patientId,
+                      })
+                }
+                size={96}
+              />
               <Text style={styles.qrCaption}>Show this at check-in</Text>
             </View>
           </View>
