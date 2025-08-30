@@ -4,6 +4,8 @@ const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 
 
+
+
 // Load environment variables
 dotenv.config();
 
@@ -15,7 +17,7 @@ connectDB();
 // Middleware
 app.use(express.json());
 
-app.use('/api/users', require('./routes/userRoutes'));
+//routes
 
 
 // Start server
