@@ -7,15 +7,15 @@ const connectDB = require("./config/db");
 // Load environment variables
 dotenv.config();
 
+const app = express();
+
 // Connect to MongoDB
 connectDB();
-
-const app = express();
 
 // Middleware
 app.use(express.json());
 
-
+app.use('/api/users', require('./routes/userRoutes'));
 
 
 // Start server
