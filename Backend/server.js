@@ -1,26 +1,42 @@
+// server.js
 const express = require("express");
-const cors = require("cors"); // Add this
+const cors = require("cors");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 
-
-// Load environment variables
 dotenv.config();
-
-// Connect to MongoDB
-connectDB();
 
 const app = express();
 
-// Middleware
+// CORS (allow all in dev)
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use(cors());
 
+// Health first (works even if DB fails)
+app.get("/", (_req, res) => res.send("OK"));
+app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
+// Try DB, but don't exit the server in dev
+(async () => {
+  try {
+    await connectDB();
+    console.log("Mongo connected");
+  } catch (e) {
+    console.error("Mongo connect failed:", e.message);
+    // continue running so /healthz is reachable
+  }
+})();
 
+// Routes
+app.use("/api/events", require("./routes/freeEventsRoutes/eventRoutes"));
+app.use("/api/event-registrations", require("./routes/freeEventsRoutes/eventRegistrationRoutes"));
+app.use("/api/lab-tests", require("./routes/freeEventsRoutes/labTestResultRoutes"));
+app.use("/api/eventLabNotifications", require("./routes/freeEventsRoutes/eventLabNotificationRoutes"));
+app.use("/api/users", require("./routes/userRoutes"));
 
-// Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Bind to 0.0.0.0 so other devices can reach it
+app.listen(PORT, "0.0.0.0", () => console.log(`Server on http://0.0.0.0:${PORT}`));
 
-// Export app for testing
 module.exports = app;
