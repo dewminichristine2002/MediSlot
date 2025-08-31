@@ -1,6 +1,7 @@
 // controllers/eventController.js
 const mongoose = require('mongoose');
-const Event = require('../models/Event');
+//const Event = require('../models/Event');
+const Event = require('../../models/Event');
 
 // Helper: build filters from query
 function buildFilters(query) {

@@ -11,6 +11,7 @@ const app = express();
 // CORS (allow all in dev)
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use(cors());
 
 // Health first (works even if DB fails)
 app.get("/", (_req, res) => res.send("OK"));
@@ -28,10 +29,10 @@ app.get("/healthz", (_req, res) => res.json({ ok: true }));
 })();
 
 // Routes
-app.use("/api/events", require("./routes/eventRoutes"));
-app.use("/api/event-registrations", require("./routes/eventRegistrationRoutes"));
-app.use("/api/lab-tests", require("./routes/labTestResultRoutes"));
-app.use("/api/eventLabNotifications", require("./routes/eventLabNotificationRoutes"));
+app.use("/api/events", require("./routes/freeEventsRoutes/eventRoutes"));
+app.use("/api/event-registrations", require("./routes/freeEventsRoutes/eventRegistrationRoutes"));
+app.use("/api/lab-tests", require("./routes/freeEventsRoutes/labTestResultRoutes"));
+app.use("/api/eventLabNotifications", require("./routes/freeEventsRoutes/eventLabNotificationRoutes"));
 app.use("/api/users", require("./routes/userRoutes"));
 
 const PORT = process.env.PORT || 5000;

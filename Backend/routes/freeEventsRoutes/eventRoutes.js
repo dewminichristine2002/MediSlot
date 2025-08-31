@@ -1,7 +1,7 @@
 // routes/eventRoutes.js
 const express = require('express');
 const router = express.Router();
-const ctrl = require('../controllers/eventController');
+const ctrl = require('../../controllers/freeeventsController/eventController');
 
 // CRUD
 router.post('/', ctrl.createEvent);
