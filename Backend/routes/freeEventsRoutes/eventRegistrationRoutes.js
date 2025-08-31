@@ -1,8 +1,8 @@
 // routes/eventRegistrationRoutes.js
 const express = require('express');
 const router = express.Router();
-const ctrl = require('../controllers/eventRegistrationController');
-const { protect, requireRole } = require('../middleware/auth');
+const ctrl = require('../../controllers/freeeventsController/eventRegistrationController');
+const { protect, requireRole } = require('../../middleware/auth');
 
 // Create
 router.post('/events/:eventId/register', protect, ctrl.createForSelf);

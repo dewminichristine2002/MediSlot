@@ -1,9 +1,9 @@
 // controllers/eventLabnNotificationController.js
 const mongoose = require('mongoose');
-const Notification = require('../models/Notification');
-const LabTestResult = require('../models/LabTestResult');
-const Event = require('../models/Event');
-const User = require('../models/User');
+const Notification = require('../../models/Notification');
+const LabTestResult = require('../../models/LabTestResult');
+const Event = require('../../models/Event');
+const User = require('../../models/User');
 
 // ----- LAB TEST NOTIFICATIONS (specific user only) -----
 

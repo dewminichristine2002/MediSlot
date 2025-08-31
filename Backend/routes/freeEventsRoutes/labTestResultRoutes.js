@@ -1,7 +1,7 @@
 // routes/labTestResultRoutes.js
 const express = require('express');
 const router = express.Router();
-const ctrl = require('../controllers/labTestResultController');
+const ctrl = require('../../controllers/freeeventsController/labTestResultController');
 
 // Create / Bulk
 router.post('/', ctrl.create);

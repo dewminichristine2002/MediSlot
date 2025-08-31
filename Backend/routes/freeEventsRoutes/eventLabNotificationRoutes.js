@@ -1,7 +1,7 @@
 // routes/eventLabnotificationRoutes.js
 const express = require('express');
 const router = express.Router();
-const ctrl = require('../controllers/eventLabNotificationController');
+const ctrl = require('../../controllers/freeeventsController/eventLabNotificationController');
 
 // Generic notification
 router.get('/', ctrl.list);

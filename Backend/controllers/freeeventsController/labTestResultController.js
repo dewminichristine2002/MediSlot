@@ -1,6 +1,6 @@
 // controllers/labTestResultController.js
 const mongoose = require('mongoose');
-const LabTestResult = require('../models/LabTestResult');
+const LabTestResult = require('../../models/LabTestResult');
 
 // Build filters for list endpoint
 function buildFilters(q) {
