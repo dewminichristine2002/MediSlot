@@ -14,8 +14,13 @@ import RegisterScreen from '../screens/RegisterScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import FreeEventsScreen from '../screens/FreeEventsScreen';
 import HealthCentersScreen from '../screens/HealthCentersScreen';
-import GuidelinesScreen from '../screens/GuidelinesScreen';
 import EventRegisterScreen from "../screens/EventRegisterScreen";
+
+// Lab Tests screens (Guidelines flow)
+import TestCategoriesScreen from '../screens/Guidelines/TestCategoriesScreen';
+import TestListScreen from '../screens/Guidelines/TestListScreen';
+import TestDetailsScreen from '../screens/Guidelines/TestDetailsScreen';
+
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -67,13 +72,27 @@ function HealthCentersStack() {
   );
 }
 
+
 function GuidelinesStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerTitleAlign: 'center' }}>
+    <Stack.Navigator
+      initialRouteName="TestCategories"
+      screenOptions={{ headerTitleAlign: 'center' }}
+    >
       <Stack.Screen
-        name="Guidelines"
-        component={GuidelinesScreen}
-        options={{ title: 'Guidelines' }}
+        name="TestCategories"
+        component={TestCategoriesScreen}
+        options={{ title: 'Lab Test Categories' }}
+      />
+      <Stack.Screen
+        name="TestList"
+        component={TestListScreen}
+        options={({ route }) => ({ title: route.params?.category || 'Tests' })}
+      />
+      <Stack.Screen
+        name="TestDetails"
+        component={TestDetailsScreen}
+        options={({ route }) => ({ title: route.params?.name || 'Test Details' })}
       />
     </Stack.Navigator>
   );
@@ -102,7 +121,7 @@ function MainTabs() {
       <Tab.Screen name="HomeTab" component={HomeStack} options={{ title: 'Home' }} />
       <Tab.Screen name="FreeEventsTab" component={FreeEventsStack} options={{ title: 'Free Events' }} />
       <Tab.Screen name="HealthCentersTab" component={HealthCentersStack} options={{ title: 'Health Centers' }} />
-      <Tab.Screen name="GuidelinesTab" component={GuidelinesStack} options={{ title: 'Guidelines' }} />
+      <Tab.Screen name="GuidelinesTab" component={GuidelinesStack} options={{ title: 'Lab Tests' }} />
     </Tab.Navigator>
   );
 }
