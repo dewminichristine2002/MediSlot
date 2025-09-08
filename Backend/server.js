@@ -10,19 +10,19 @@ dotenv.config();
 
 const app = express();
 
-// CORS once
+// CORS (once)
 app.use(cors({ origin: true, credentials: true }));
 
-// JSON body parser
-app.use(express.json());
+// Body parsers
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Ensure uploads directories exist
+// Ensure uploads directories exist (recursive)
 const uploadsRoot = path.join(__dirname, 'uploads');
 const reportsDir = path.join(uploadsRoot, 'reports');
-if (!fs.existsSync(uploadsRoot)) fs.mkdirSync(uploadsRoot);
-if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir);
+fs.mkdirSync(reportsDir, { recursive: true });
 
-// Serve static files
+// Serve static files (e.g., /uploads/reports/<file>)
 app.use('/uploads', express.static(uploadsRoot));
 
 // Health first (works even if DB fails)
@@ -46,16 +46,25 @@ app.use('/api/lab-tests', require('./routes/freeEventsRoutes/labTestResultRoutes
 app.use('/api/eventLabNotifications', require('./routes/freeEventsRoutes/eventLabNotificationRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 
-// Error handler for multer/fileFilter, etc.
-app.use((err, _req, res, _next) => {
-  if (err) {
-    const status = err.status || 400;
-    return res.status(status).json({ message: err.message || 'Upload error' });
+// 404 for unknown API routes
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ message: 'Not Found' });
   }
+  return next();
+});
+
+// Error handler (multer/fileFilter, JSON errors, etc.)
+app.use((err, _req, res, _next) => {
+  const status = err.status || 400;
+  const message = err.message || 'Request error';
+  return res.status(status).json({ message });
 });
 
 const PORT = process.env.PORT || 5000;
-// Bind to 0.0.0.0 so other devices can reach it (e.g., Expo)
-app.listen(PORT, '0.0.0.0', () => console.log(`Server on http://0.0.0.0:${PORT}`));
+const HOST = process.env.HOST || '0.0.0.0'; // bind so Expo devices can reach it
+app.listen(PORT, HOST, () => {
+  console.log(`Server on http://${HOST}:${PORT}`);
+});
 
 module.exports = app;

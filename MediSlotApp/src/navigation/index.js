@@ -15,7 +15,10 @@ import ProfileScreen from '../screens/ProfileScreen';
 import FreeEventsScreen from '../screens/FreeEventsScreen';
 import HealthCentersScreen from '../screens/HealthCentersScreen';
 import GuidelinesScreen from '../screens/GuidelinesScreen';
-import EventRegisterScreen from "../screens/EventRegisterScreen";
+import EventRegisterScreen from '../screens/EventRegisterScreen';
+
+// ⬇️ NEW: notifications list screen
+import NotificationsScreen from '../screens/NotificationsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -30,6 +33,7 @@ function HomeStack() {
       screenOptions={{ headerTitleAlign: 'center' }}
     >
       <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
       <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Login' }} />
       <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Register' }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' }} />
@@ -45,7 +49,7 @@ function FreeEventsStack() {
         component={FreeEventsScreen}
         options={{ title: 'Free Events' }}
       />
-      {/* ⬇️ NEW: register screen that FreeEvents can push to */}
+      {/* Register screen that FreeEvents can push to */}
       <Stack.Screen
         name="EventRegister"
         component={EventRegisterScreen}

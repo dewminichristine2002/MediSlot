@@ -1,10 +1,17 @@
-import React, { useLayoutEffect, useCallback } from 'react';
+import React, { useLayoutEffect, useCallback, useState, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, Button } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getApiBaseUrl } from '../api/config';
 
 export default function HomeScreen({ navigation }) {
-  const { user, signOut } = useAuth();
+  const { user, token, signOut } = useAuth();
+  const [notifCount, setNotifCount] = useState(0);
+  const pollingRef = useRef(null);
+
+  const storageKey = user?._id ? `notif_last_seen_${user._id}` : null;
 
   const canGoTo = useCallback(
     (routeName) => navigation.getState()?.routeNames?.includes(routeName),
@@ -20,6 +27,14 @@ export default function HomeScreen({ navigation }) {
     if (canGoTo('Profile')) navigation.navigate('Profile');
   }, [navigation, canGoTo]);
 
+  const goNotifications = useCallback(() => {
+    if (canGoTo('Notifications')) {
+      navigation.navigate('Notifications');
+    } else {
+      Alert.alert('Notifications', 'Notification list screen is not available yet.');
+    }
+  }, [navigation, canGoTo]);
+
   const handleLogout = useCallback(() => {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
@@ -27,14 +42,82 @@ export default function HomeScreen({ navigation }) {
     ]);
   }, [signOut]);
 
+  // ---- Fetch notification count (frontend-only unseen) ----
+  const fetchNotifCount = useCallback(async () => {
+    try {
+      if (!user?._id) {
+        setNotifCount(0);
+        return;
+      }
+      const base = getApiBaseUrl();
+      const url = `${base}/api/eventLabNotifications?user_id=${user._id}`;
+
+      const res = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const items = await res.json();
+      const list = Array.isArray(items) ? items : [];
+
+      // last seen from storage (default: 0)
+      let lastSeen = 0;
+      if (storageKey) {
+        const raw = await AsyncStorage.getItem(storageKey);
+        if (raw) lastSeen = Number(raw) || 0;
+      }
+
+      // Count items with sent_at > lastSeen
+      const unseen = list.filter((n) => {
+        const t = n?.sent_at ? new Date(n.sent_at).getTime() : 0;
+        return t > lastSeen;
+      }).length;
+
+      setNotifCount(unseen);
+    } catch (e) {
+      console.warn('Failed to fetch notifications:', e.message);
+    }
+  }, [user?._id, token, storageKey]);
+
+  // Refresh on screen focus + gentle polling
+  useFocusEffect(
+    useCallback(() => {
+      fetchNotifCount();
+      pollingRef.current = setInterval(fetchNotifCount, 30000);
+      return () => {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+      };
+    }, [fetchNotifCount])
+  );
+
+  // Put icons on the header
   useLayoutEffect(() => {
     if (user && canGoTo('Profile')) {
       navigation.setOptions({
         headerRight: () => (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {/* Notifications bell with badge */}
+            <Pressable onPress={goNotifications} hitSlop={10} style={{ marginRight: 14 }}>
+              <View>
+                <Ionicons name="notifications-outline" size={26} />
+                {notifCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {notifCount > 99 ? '99+' : String(notifCount)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </Pressable>
+
+            {/* Profile */}
             <Pressable onPress={goProfile} hitSlop={10}>
               <Ionicons name="person-circle-outline" size={28} />
             </Pressable>
+
+            {/* Logout */}
             <Pressable onPress={handleLogout} hitSlop={10} style={{ marginLeft: 14 }}>
               <Ionicons name="log-out-outline" size={26} />
             </Pressable>
@@ -44,19 +127,17 @@ export default function HomeScreen({ navigation }) {
     } else {
       navigation.setOptions({ headerRight: undefined });
     }
-  }, [navigation, user, canGoTo, goProfile, handleLogout]);
+  }, [navigation, user, canGoTo, goProfile, handleLogout, goNotifications, notifCount]);
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Home</Text>
 
-      {/* Show Login button only when NOT authenticated */}
       {!user ? (
         <Button title="Go to Login" onPress={goLogin} />
       ) : (
         <Text style={styles.welcome}>Welcome back 👋</Text>
       )}
-
     </View>
   );
 }
@@ -65,21 +146,19 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
   title: { fontSize: 28, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
   welcome: { textAlign: 'center', marginBottom: 8 },
-  menuSection: { marginTop: 16 },
-  menuTitle: { fontSize: 18, fontWeight: '700', marginBottom: 10 },
-  menuGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  menuItem: {
-    width: '48%',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 14,
-    paddingVertical: 18,
+
+  // Header badge
+  badge: {
+    position: 'absolute',
+    right: -8,
+    top: -6,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    backgroundColor: '#ef4444',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuItemText: { marginTop: 8, fontWeight: '600' },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
 });

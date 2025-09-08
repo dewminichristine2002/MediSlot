@@ -1,5 +1,4 @@
-// src/screens/ProfileScreen.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,10 +17,24 @@ import * as Sharing from 'expo-sharing';
 import * as WebBrowser from 'expo-web-browser';
 import { getApiBaseUrl } from '../api/config';
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ route }) {
   const { user } = useAuth();
   const [showRegs, setShowRegs] = useState(false);
   const [showLab, setShowLab] = useState(false);
+  const scrollRef = useRef(null);
+
+  // 👇 NEW: if navigated with { openLab: true }, open the Lab section and scroll to it
+  useEffect(() => {
+    if (route?.params?.openLab) {
+      setShowLab(true);
+      // slight delay so content renders before scrolling
+      setTimeout(() => {
+        try {
+          scrollRef.current?.scrollToEnd({ animated: true });
+        } catch {}
+      }, 200);
+    }
+  }, [route?.params?.openLab]);
 
   return (
     <View style={{ flex: 1, paddingTop: 60 }}>
@@ -59,7 +72,11 @@ export default function ProfileScreen() {
       </View>
 
       {/* Scrollable lists */}
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingTop: 0 }}>
+      <ScrollView
+        ref={scrollRef}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 20, paddingTop: 0 }}
+      >
         {showRegs && <MyEventRegs />}
         {showLab && <MyLabTestResults />}
       </ScrollView>
@@ -150,7 +167,7 @@ function MyEventRegs() {
         data={regs}
         keyExtractor={(item, idx) => item?.registration_id ?? `reg-${idx}`}
         contentContainerStyle={{ gap: 12 }}
-        scrollEnabled={false} // outer ScrollView handles scrolling
+        scrollEnabled={false}
         renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={{ flex: 1 }}>
@@ -320,7 +337,7 @@ function MyLabTestResults() {
         data={results}
         keyExtractor={(item, idx) => item?._id ?? `lab-${idx}`}
         contentContainerStyle={{ gap: 12 }}
-        scrollEnabled={false} // outer ScrollView handles scrolling
+        scrollEnabled={false}
         renderItem={({ item }) => {
           const testName = item?.testOrEvent_name || item?.test?.name || 'Lab Test';
           const uploadedAt = item?.uploaded_at || item?.createdAt;
@@ -421,4 +438,4 @@ const styles = StyleSheet.create({
   linkBtnText: { fontWeight: '700' },
 });
 
-export { };
+export {};

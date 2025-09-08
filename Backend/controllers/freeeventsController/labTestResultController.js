@@ -1,8 +1,10 @@
-// controllers/freeeventsController/labTestResultController.js
 const mongoose = require('mongoose');
 const LabTestResult = require('../../models/LabTestResult');
 const fs = require('fs');
 const path = require('path');
+
+// ⬇️ Import the notifier (same folder)
+const { notifyLabResultReady } = require('./eventLabNotificationController');
 
 // Build filters for list endpoint
 function buildFilters(q) {
@@ -40,6 +42,11 @@ exports.create = async (req, res) => {
     }
 
     const doc = await LabTestResult.create(body);
+
+    // 🔔 Fire-and-forget notification
+    notifyLabResultReady({ lab_test_result_id: doc._id })
+      .catch(err => console.error('[notifyLabResultReady] failed:', err.message));
+
     return res.status(201).json(doc);
   } catch (err) {
     return res
@@ -198,6 +205,15 @@ exports.bulkCreate = async (req, res) => {
     if (!docs.length) return res.status(400).json({ message: 'Provide an array of lab test results' });
 
     const inserted = await LabTestResult.insertMany(docs, { ordered: false });
+
+    // 🔔 Optional: notify each uploaded report
+    Promise.allSettled(
+      inserted.map(d => notifyLabResultReady({ lab_test_result_id: d._id }))
+    ).then(results => {
+      const failures = results.filter(r => r.status === 'rejected').length;
+      if (failures) console.error(`[bulk notifyLabResultReady] ${failures} failed`);
+    }).catch(() => {});
+
     return res.status(201).json({ insertedCount: inserted.length, inserted });
   } catch (err) {
     return res.status(207).json({
