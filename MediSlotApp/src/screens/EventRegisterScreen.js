@@ -1,6 +1,18 @@
 // src/screens/EventRegisterScreen.js
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, Alert, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  TouchableWithoutFeedback,
+  Keyboard,
+} from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
@@ -67,16 +79,13 @@ export default function EventRegisterScreen() {
     defaultValues,
   });
 
-  // NEW: helper to append a registration locally so Profile can render a QR even
-  // if the backend "my registrations" endpoint isn't ready yet.
   async function saveRegistrationLocally(reg) {
     try {
       const key = "my_event_regs";
       const existing = await AsyncStorage.getItem(key);
       const list = existing ? JSON.parse(existing) : [];
-      // push newest first
       list.unshift(reg);
-      await AsyncStorage.setItem(key, JSON.stringify(list.slice(0, 50))); // cap to 50
+      await AsyncStorage.setItem(key, JSON.stringify(list.slice(0, 50)));
     } catch (e) {
       console.warn("Failed to save local registration:", e);
     }
@@ -114,30 +123,24 @@ export default function EventRegisterScreen() {
         throw new Error(data?.message || "Registration failed");
       }
 
-      // The backend may return your new registration as `data.registration` or directly as the document.
-      const reg =
-        data?.registration ||
-        data?.doc ||
-        data;
+      const reg = data?.registration || data?.doc || data;
 
-      // Build a QR payload (keep it small but meaningful).
-      // Scanners (your admin app) can decode this JSON.
       const qrPayload = {
-        t: "event_reg",                   // type
-        regId: reg?._id,                  // registration id
-        eventId: event._id,               // event id
-        userId: user?._id,                // optional
-        name: values.name,                // for quick human check at scan
-        nic: values.nic,                  // quick check
-        ts: Date.now(),                   // timestamp
+        t: "event_reg",
+        regId: reg?._id,
+        eventId: event._id,
+        userId: user?._id,
+        name: values.name,
+        nic: values.nic,
+        ts: Date.now(),
       };
       const qrString = JSON.stringify(qrPayload);
 
-      // Prepare a compact object for Profile listing
       const localReg = {
         _id: reg?._id,
         status: reg?.status || data?.status || "confirmed",
-        waitlist_position: reg?.waitlist_position ?? data?.waitlist_position ?? null,
+        waitlist_position:
+          reg?.waitlist_position ?? data?.waitlist_position ?? null,
         event: {
           _id: event._id,
           name: event.name,
@@ -155,17 +158,17 @@ export default function EventRegisterScreen() {
           email: values.email || "",
           address: values.address || "",
         },
-        // NEW: store QR data string to be rendered as QR in Profile
         qrString,
         createdAt: new Date().toISOString(),
       };
 
-      // Save to local storage so Profile can render it
       await saveRegistrationLocally(localReg);
 
       const msg =
         (reg?.status || data.status) === "waitlist"
-          ? `You are added to the waitlist.\nPosition: ${reg?.waitlist_position ?? data?.waitlist_position ?? "TBD"}`
+          ? `You are added to the waitlist.\nPosition: ${
+              reg?.waitlist_position ?? data?.waitlist_position ?? "TBD"
+            }`
           : "Registration confirmed!";
 
       Alert.alert("Success", msg, [
@@ -173,8 +176,7 @@ export default function EventRegisterScreen() {
           text: "View in Profile",
           onPress: () => {
             reset(defaultValues);
-            // Navigate to Profile so the user immediately sees the QR
-            navigation.navigate("Profile"); // make sure your navigator has this route name
+            navigation.navigate("Profile");
           },
         },
         {
@@ -194,7 +196,7 @@ export default function EventRegisterScreen() {
 
   if (authLoading || tokenLoading) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+      <View style={styles.center}>
         <ActivityIndicator size="large" />
         <Text style={{ marginTop: 10 }}>Preparing…</Text>
       </View>
@@ -203,7 +205,7 @@ export default function EventRegisterScreen() {
 
   if (!token) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <View style={[styles.center, { padding: 24 }]}>
         <Text style={{ fontSize: 16, textAlign: "center" }}>
           You’re not logged in. Please login again to register for events.
         </Text>
@@ -212,151 +214,162 @@ export default function EventRegisterScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Register for Event</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <ScrollView
+            contentContainerStyle={[styles.container, { flexGrow: 1 }]}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={styles.title}>Register for Event</Text>
 
-      {event && (
-        <View style={styles.eventBox}>
-          <Text style={styles.eventName}>{event.name}</Text>
-          <Text style={styles.eventMeta}>
-            {new Date(event.date).toLocaleDateString()} at {event.time}
-          </Text>
-          <Text style={styles.eventMeta}>{event.location}</Text>
-        </View>
-      )}
-
-      <Controller
-        control={control}
-        name="name"
-        render={({ field: { value, onChange, onBlur } }) => (
-          <FormTextInput
-            label="Full Name*"
-            value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            placeholder="John Doe"
-            error={errors.name?.message}
-          />
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="nic"
-        render={({ field: { value, onChange, onBlur } }) => (
-          <FormTextInput
-            label="NIC*"
-            value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            placeholder="123456789V"
-            error={errors.nic?.message}
-          />
-        )}
-      />
-
-      {/* Gender dropdown */}
-      <Controller
-        control={control}
-        name="gender"
-        render={({ field: { value, onChange } }) => (
-          <View style={{ marginBottom: 12 }}>
-            <Text style={{ fontWeight: "600", marginBottom: 6 }}>Gender</Text>
-            <View
-              style={{
-                borderWidth: 1,
-                borderColor: "#ddd",
-                borderRadius: 8,
-                overflow: "hidden",
-              }}
-            >
-              <Picker
-                selectedValue={value ?? ""}
-                onValueChange={(v) => onChange(v === "" ? undefined : v)}
-              >
-                <Picker.Item label="Select gender" value="" />
-                <Picker.Item label="Male" value="Male" />
-                <Picker.Item label="Female" value="Female" />
-              </Picker>
-            </View>
-            {!!errors.gender?.message && (
-              <Text style={{ color: "red", marginTop: 4 }}>
-                {errors.gender.message}
-              </Text>
+            {event && (
+              <View style={styles.eventBox}>
+                <Text style={styles.eventName}>{event.name}</Text>
+                <Text style={styles.eventMeta}>
+                  {new Date(event.date).toLocaleDateString()} at {event.time}
+                </Text>
+                <Text style={styles.eventMeta}>{event.location}</Text>
+              </View>
             )}
-          </View>
-        )}
-      />
 
-      <Controller
-        control={control}
-        name="age"
-        render={({ field: { value, onChange, onBlur } }) => (
-          <FormTextInput
-            label="Age*"
-            value={String(value ?? "")}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            keyboardType="number-pad"
-            placeholder="30"
-            error={errors.age?.message}
-          />
-        )}
-      />
+            <Controller
+              control={control}
+              name="name"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <FormTextInput
+                  label="Full Name*"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  placeholder="John Doe"
+                  error={errors.name?.message}
+                />
+              )}
+            />
 
-      <Controller
-        control={control}
-        name="contact"
-        render={({ field: { value, onChange, onBlur } }) => (
-          <FormTextInput
-            label="Contact Number*"
-            value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            keyboardType="phone-pad"
-            placeholder="+94 7X XXX XXXX"
-            error={errors.contact?.message}
-          />
-        )}
-      />
+            <Controller
+              control={control}
+              name="nic"
+              render={({ field: { value, onChange, onBlur} }) => (
+                <FormTextInput
+                  label="NIC*"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  placeholder="123456789V"
+                  error={errors.nic?.message}
+                />
+              )}
+            />
 
-      <Controller
-        control={control}
-        name="email"
-        render={({ field: { value, onChange, onBlur } }) => (
-          <FormTextInput
-            label="Email"
-            value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            keyboardType="email-address"
-            placeholder="name@example.com"
-            error={errors.email?.message}
-          />
-        )}
-      />
+            {/* Gender dropdown */}
+            <Controller
+              control={control}
+              name="gender"
+              render={({ field: { value, onChange } }) => (
+                <View style={{ marginBottom: 12 }}>
+                  <Text style={{ fontWeight: "600", marginBottom: 6 }}>
+                    Gender
+                  </Text>
+                  <View style={styles.pickerBox}>
+                    <Picker
+                      selectedValue={value ?? ""}
+                      onValueChange={(v) => onChange(v === "" ? undefined : v)}
+                    >
+                      <Picker.Item label="Select gender" value="" />
+                      <Picker.Item label="Male" value="Male" />
+                      <Picker.Item label="Female" value="Female" />
+                    </Picker>
+                  </View>
+                  {!!errors.gender?.message && (
+                    <Text style={{ color: "red", marginTop: 4 }}>
+                      {errors.gender.message}
+                    </Text>
+                  )}
+                </View>
+              )}
+            />
 
-      <Controller
-        control={control}
-        name="address"
-        render={({ field: { value, onChange, onBlur } }) => (
-          <FormTextInput
-            label="Address"
-            value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            placeholder="Street, City"
-            error={errors.address?.message}
-          />
-        )}
-      />
+            <Controller
+              control={control}
+              name="age"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <FormTextInput
+                  label="Age*"
+                  value={String(value ?? "")}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  keyboardType="number-pad"
+                  placeholder="30"
+                  error={errors.age?.message}
+                />
+              )}
+            />
 
-      <PrimaryButton
-        title={submitting ? "Submitting..." : "Submit"}
-        onPress={handleSubmit(onSubmit)}
-        disabled={submitting}
-      />
-    </ScrollView>
+            <Controller
+              control={control}
+              name="contact"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <FormTextInput
+                  label="Contact Number*"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  keyboardType="phone-pad"
+                  placeholder="+94 7X XXX XXXX"
+                  error={errors.contact?.message}
+                />
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <FormTextInput
+                  label="Email"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  keyboardType="email-address"
+                  placeholder="name@example.com"
+                  error={errors.email?.message}
+                />
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="address"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <FormTextInput
+                  label="Address"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  placeholder="Street, City"
+                  error={errors.address?.message}
+                />
+              )}
+            />
+
+            <PrimaryButton
+              title={submitting ? "Submitting..." : "Submit"}
+              onPress={handleSubmit(onSubmit)}
+              disabled={submitting}
+            />
+
+            {/* Spacer so the button isn't hidden by keyboard */}
+            <View style={{ height: 24 }} />
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -371,4 +384,11 @@ const styles = StyleSheet.create({
   },
   eventName: { fontWeight: "800", fontSize: 16, marginBottom: 4 },
   eventMeta: { color: "#333" },
+  pickerBox: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
 });

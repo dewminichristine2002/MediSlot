@@ -75,60 +75,56 @@ function MyEventRegs() {
   const [loading, setLoading] = useState(true);
   const [regs, setRegs] = useState([]);
 
+  const refresh = async () => {
+    try {
+      const t = await AsyncStorage.getItem('token');
+      if (!t) throw new Error('No token');
+
+      const url = `${getApiBaseUrl()}/api/event-registrations/events-by-user/me?when=all&page=1&limit=50&sort=event.date&order=desc`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${t}` } });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      setRegs(items);
+      await AsyncStorage.setItem('my_event_regs', JSON.stringify(items));
+    } catch (err) {
+      console.warn('Loading registrations failed → using local cache:', err.message);
+      const localStr = await AsyncStorage.getItem('my_event_regs');
+      const local = localStr ? JSON.parse(localStr) : [];
+      setRegs(local);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!patientId) {
       setRegs([]);
       setLoading(false);
       return;
     }
-
-    (async () => {
-      try {
-        const t = await AsyncStorage.getItem('token');
-        if (t) {
-          let res = await fetch(
-            `${getApiBaseUrl()}/api/event-registrations/mine?patientId=${encodeURIComponent(
-              patientId
-            )}`,
-            { headers: { Authorization: `Bearer ${t}` } }
-          );
-
-          if (res.status === 404) {
-            res = await fetch(
-              `${getApiBaseUrl()}/api/event-registrations?patientId=${encodeURIComponent(
-                patientId
-              )}`,
-              { headers: { Authorization: `Bearer ${t}` } }
-            );
-          }
-
-          if (res.ok) {
-            const data = await res.json();
-            const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-            const mine = items.filter((r) => {
-              const pid = r?.patient?._id || r?.patient_id || r?.user?._id;
-              return pid === patientId;
-            });
-            setRegs(mine);
-            await AsyncStorage.setItem('my_event_regs', JSON.stringify(mine));
-            setLoading(false);
-            return;
-          }
-        }
-
-        const localStr = await AsyncStorage.getItem('my_event_regs');
-        const local = localStr ? JSON.parse(localStr) : [];
-        setRegs(local.filter((r) => (r?.patient?._id || r?.patient_id || r?.user?._id) === patientId));
-      } catch (err) {
-        console.warn('Loading registrations failed → using local cache:', err.message);
-        const localStr = await AsyncStorage.getItem('my_event_regs');
-        const local = localStr ? JSON.parse(localStr) : [];
-        setRegs(local.filter((r) => (r?.patient?._id || r?.patient_id || r?.user?._id) === patientId));
-      } finally {
-        setLoading(false);
-      }
-    })();
+    refresh();
   }, [patientId]);
+
+  const cancelRegistration = async (registration_id) => {
+    try {
+      const t = await AsyncStorage.getItem('token');
+      if (!t) throw new Error('Not authenticated');
+
+      const res = await fetch(
+        `${getApiBaseUrl()}/api/event-registrations/${registration_id}/cancel`,
+        { method: 'PATCH', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' } }
+      );
+
+      if (!res.ok) throw new Error('Cancel failed');
+      Alert.alert('Cancelled', 'Your registration was cancelled. The next person in the waitlist will be promoted automatically.');
+      await refresh();
+    } catch (e) {
+      Alert.alert('Error', e.message || 'Could not cancel');
+    }
+  };
 
   if (loading) {
     return (
@@ -152,39 +148,50 @@ function MyEventRegs() {
       <Text style={{ fontSize: 18, fontWeight: '800', marginBottom: 10 }}>My Event Registrations</Text>
       <FlatList
         data={regs}
-        keyExtractor={(item, idx) => item?._id ?? `reg-${idx}`}
+        keyExtractor={(item, idx) => item?.registration_id ?? `reg-${idx}`}
         contentContainerStyle={{ gap: 12 }}
         scrollEnabled={false} // outer ScrollView handles scrolling
         renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.eventName}>{item?.event?.name || 'Event'}</Text>
-              {!!item?.event?.date && (
+              <Text style={styles.eventName}>{item?.event_name || 'Event'}</Text>
+
+              {!!item?.event_date && (
                 <Text style={styles.meta}>
-                  {new Date(item.event.date).toLocaleDateString()}
-                  {item.event.time ? ` at ${item.event.time}` : ''}
+                  {new Date(item.event_date).toLocaleDateString()}
+                  {item.event_time ? ` at ${item.event_time}` : ''}
                 </Text>
               )}
-              {!!item?.event?.location && <Text style={styles.meta}>{item.event.location}</Text>}
+
+              {!!item?.event_location && <Text style={styles.meta}>{item.event_location}</Text>}
+
               <Text style={styles.status}>
-                Status: {item.status}
-                {item.status === 'waitlist' && item.waitlist_position != null
+                Status: {item.registration_status}
+                {item.registration_status === 'waitlist' && item.waitlist_position != null
                   ? ` (Pos ${item.waitlist_position})`
                   : ''}
               </Text>
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                {item.registration_status !== 'cancelled' && (
+                  <TouchableOpacity
+                    style={[styles.linkBtn, { borderColor: '#EF4444' }]}
+                    onPress={() => cancelRegistration(item.registration_id)}
+                  >
+                    <Text style={[styles.linkBtnText, { color: '#EF4444' }]}>Cancel</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             <View style={styles.qrBox}>
               <QRCode
-                value={
-                  item.qrString ||
-                  JSON.stringify({
-                    t: 'event_reg',
-                    regId: item._id,
-                    eventId: item?.event?._id,
-                    userId: patientId,
-                  })
-                }
+                value={JSON.stringify({
+                  t: 'event_reg',
+                  regId: item.registration_id,
+                  eventId: item.event_id,
+                  userId: patientId,
+                })}
                 size={96}
               />
               <Text style={styles.qrCaption}>Show this at check-in</Text>
@@ -413,3 +420,5 @@ const styles = StyleSheet.create({
   },
   linkBtnText: { fontWeight: '700' },
 });
+
+export { };
