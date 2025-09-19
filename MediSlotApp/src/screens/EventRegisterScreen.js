@@ -9,10 +9,11 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   TouchableWithoutFeedback,
   Keyboard,
+  Pressable,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context"; // ← new import
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
@@ -21,8 +22,16 @@ import { getApiBaseUrl } from "../api/config";
 import { useAuth } from "../context/AuthContext";
 import FormTextInput from "../components/FormTextInput";
 import PrimaryButton from "../components/PrimaryButton";
-import { Picker } from "@react-native-picker/picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const C = {
+  bg: "#F5F7FB",
+  card: "#FFFFFF",
+  text: "#0F172A",
+  sub: "#64748B",
+  border: "#E6EAF2",
+  primary: "#2563EB",
+};
 
 const schema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -34,6 +43,109 @@ const schema = z.object({
   address: z.string().optional().or(z.literal("")),
 });
 
+// --- Minimal i18n ---
+const STRINGS = {
+  en: {
+    title: "Register for Event",
+    eventDateAt: (d, t) => `${new Date(d).toLocaleDateString()} at ${t || "-"}`,
+    notLoggedIn:
+      "You’re not logged in. Please login again to register for events.",
+    preparing: "Preparing…",
+    fullName: "Full Name*",
+    nic: "NIC*",
+    gender: "Gender",
+    selectGender: "Select gender",
+    male: "Male",
+    female: "Female",
+    age: "Age*",
+    contact: "Contact Number*",
+    email: "Email",
+    address: "Address",
+    submit: "Submit",
+  },
+  si: {
+    title: "සිදුවීමට ලියාපදිංචි වන්න",
+    eventDateAt: (d, t) =>
+      `${new Date(d).toLocaleDateString()} • ${t || "-"}`,
+    notLoggedIn:
+      "ඔබ පිවිසුන තත්ත්වයේ නොමැත. සිදුවීම් සඳහා ලියාපදිංචි වීමට කරුණාකර නැවත පිවිසෙන්න.",
+    preparing: "සකස් වෙමින්…",
+    fullName: "සම්පූර්ණ නාමය*",
+    nic: "ජාතික හැඳුනුම්පත් අංකය (NIC)*",
+    gender: "ලිංගය",
+    selectGender: "ලිංගය තෝරන්න",
+    male: "පුරුෂ",
+    female: "ස්ත්‍රී",
+    age: "වයස*",
+    contact: "දුරකථන අංකය*",
+    email: "ඊමේල්",
+    address: "ලිපිනය",
+    submit: "යොමු කරන්න",
+  },
+  ta: {
+    title: "நிகழ்ச்சிக்கு பதிவு செய்யவும்",
+    eventDateAt: (d, t) =>
+      `${new Date(d).toLocaleDateString()} • ${t || "-"}`,
+    notLoggedIn:
+      "நீங்கள் உள்நுழையவில்லை. நிகழ்வுகளுக்கு பதிவு செய்ய மீண்டும் உள்நுழையவும்.",
+    preparing: "தயாராக்கப்படுகிறது…",
+    fullName: "முழுப் பெயர்*",
+    nic: "தேசிய அடையாள அட்டை எண் (NIC)*",
+    gender: "பால்",
+    selectGender: "பால் தேர்வு செய்யவும்",
+    male: "ஆண்",
+    female: "பெண்",
+    age: "வயது*",
+    contact: "தொலைபேசி எண்*",
+    email: "மின்னஞ்சல்",
+    address: "முகவரி",
+    submit: "சமர்ப்பிக்க",
+  },
+};
+
+function resolveInitialLang() {
+  const l =
+    (Intl?.DateTimeFormat?.().resolvedOptions?.().locale || "en").toLowerCase();
+  if (l.startsWith("si")) return "si";
+  if (l.startsWith("ta")) return "ta";
+  return "en";
+}
+
+// Chip-style gender selector
+function GenderChips({ t, value, onChange, error }) {
+  const options = [
+    { key: "Male", label: t.male },
+    { key: "Female", label: t.female },
+  ];
+  return (
+    <View style={{ marginBottom: 12 }}>
+      <Text style={styles.inputLabel}>{t.gender}</Text>
+      <View style={styles.genderRow}>
+        {options.map((o) => {
+          const active = value === o.key;
+          return (
+            <Pressable
+              key={o.key}
+              onPress={() => onChange(active ? undefined : o.key)}
+              style={[styles.genderChip, active && styles.genderChipActive]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              hitSlop={8}
+            >
+              <Text
+                style={[styles.genderChipText, active && styles.genderChipTextActive]}
+              >
+                {o.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
+    </View>
+  );
+}
+
 export default function EventRegisterScreen() {
   const route = useRoute();
   const navigation = useNavigation();
@@ -41,13 +153,16 @@ export default function EventRegisterScreen() {
 
   const { user, loading: authLoading } = useAuth();
 
+  const [lang, setLang] = useState(resolveInitialLang());
+  const t = STRINGS[lang] || STRINGS.en;
+
   const [token, setToken] = useState(null);
   const [tokenLoading, setTokenLoading] = useState(true);
   useEffect(() => {
     (async () => {
       try {
-        const t = await AsyncStorage.getItem("token");
-        setToken(t);
+        const tk = await AsyncStorage.getItem("token");
+        setToken(tk);
       } finally {
         setTokenLoading(false);
       }
@@ -119,22 +234,9 @@ export default function EventRegisterScreen() {
       );
 
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || "Registration failed");
-      }
+      if (!res.ok) throw new Error(data?.message || "Registration failed");
 
       const reg = data?.registration || data?.doc || data;
-
-      const qrPayload = {
-        t: "event_reg",
-        regId: reg?._id,
-        eventId: event._id,
-        userId: user?._id,
-        name: values.name,
-        nic: values.nic,
-        ts: Date.now(),
-      };
-      const qrString = JSON.stringify(qrPayload);
 
       const localReg = {
         _id: reg?._id,
@@ -158,7 +260,15 @@ export default function EventRegisterScreen() {
           email: values.email || "",
           address: values.address || "",
         },
-        qrString,
+        qrString: JSON.stringify({
+          t: "event_reg",
+          regId: reg?._id,
+          eventId: event._id,
+          userId: user?._id,
+          name: values.name,
+          nic: values.nic,
+          ts: Date.now(),
+        }),
         createdAt: new Date().toISOString(),
       };
 
@@ -197,8 +307,8 @@ export default function EventRegisterScreen() {
   if (authLoading || tokenLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text style={{ marginTop: 10 }}>Preparing…</Text>
+        <ActivityIndicator size="large" color={C.primary} />
+        <Text style={{ marginTop: 10, color: C.sub }}>Preparing…</Text>
       </View>
     );
   }
@@ -206,43 +316,74 @@ export default function EventRegisterScreen() {
   if (!token) {
     return (
       <View style={[styles.center, { padding: 24 }]}>
-        <Text style={{ fontSize: 16, textAlign: "center" }}>
-          You’re not logged in. Please login again to register for events.
+        <Text style={{ fontSize: 16, textAlign: "center", color: C.text }}>
+          {STRINGS[lang].notLoggedIn}
         </Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }} edges={["top", "right", "left"]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <ScrollView
             contentContainerStyle={[styles.container, { flexGrow: 1 }]}
             keyboardShouldPersistTaps="handled"
           >
-            <Text style={styles.title}>Register for Event</Text>
+            {/* Header */}
+            <View style={styles.headerRow}>
+              <Text style={styles.title}>{STRINGS[lang].title}</Text>
+              <View style={styles.langChips}>
+                {[
+                  { k: "en", label: "EN" },
+                  { k: "si", label: "සිං" },
+                  { k: "ta", label: "தமிழ்" },
+                ].map((o) => (
+                  <Pressable
+                    key={o.k}
+                    onPress={() => setLang(o.k)}
+                    style={[styles.chip, lang === o.k && styles.chipActive]}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        lang === o.k && styles.chipTextActive,
+                      ]}
+                    >
+                      {o.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
 
+            {/* Event summary */}
             {event && (
               <View style={styles.eventBox}>
-                <Text style={styles.eventName}>{event.name}</Text>
-                <Text style={styles.eventMeta}>
-                  {new Date(event.date).toLocaleDateString()} at {event.time}
-                </Text>
-                <Text style={styles.eventMeta}>{event.location}</Text>
+                <View style={styles.eventAccent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.eventName}>{event.name}</Text>
+                  <Text style={styles.eventMeta}>
+                    {STRINGS[lang].eventDateAt(event.date, event.time)}
+                  </Text>
+                  {!!event.location && (
+                    <Text style={styles.eventMeta}>{event.location}</Text>
+                  )}
+                </View>
               </View>
             )}
 
+            {/* Form fields */}
             <Controller
               control={control}
               name="name"
               render={({ field: { value, onChange, onBlur } }) => (
                 <FormTextInput
-                  label="Full Name*"
+                  label={STRINGS[lang].fullName}
                   value={value}
                   onChangeText={onChange}
                   onBlur={onBlur}
@@ -255,9 +396,9 @@ export default function EventRegisterScreen() {
             <Controller
               control={control}
               name="nic"
-              render={({ field: { value, onChange, onBlur} }) => (
+              render={({ field: { value, onChange, onBlur } }) => (
                 <FormTextInput
-                  label="NIC*"
+                  label={STRINGS[lang].nic}
                   value={value}
                   onChangeText={onChange}
                   onBlur={onBlur}
@@ -267,31 +408,16 @@ export default function EventRegisterScreen() {
               )}
             />
 
-            {/* Gender dropdown */}
             <Controller
               control={control}
               name="gender"
               render={({ field: { value, onChange } }) => (
-                <View style={{ marginBottom: 12 }}>
-                  <Text style={{ fontWeight: "600", marginBottom: 6 }}>
-                    Gender
-                  </Text>
-                  <View style={styles.pickerBox}>
-                    <Picker
-                      selectedValue={value ?? ""}
-                      onValueChange={(v) => onChange(v === "" ? undefined : v)}
-                    >
-                      <Picker.Item label="Select gender" value="" />
-                      <Picker.Item label="Male" value="Male" />
-                      <Picker.Item label="Female" value="Female" />
-                    </Picker>
-                  </View>
-                  {!!errors.gender?.message && (
-                    <Text style={{ color: "red", marginTop: 4 }}>
-                      {errors.gender.message}
-                    </Text>
-                  )}
-                </View>
+                <GenderChips
+                  t={STRINGS[lang]}
+                  value={value}
+                  onChange={onChange}
+                  error={errors.gender?.message}
+                />
               )}
             />
 
@@ -300,7 +426,7 @@ export default function EventRegisterScreen() {
               name="age"
               render={({ field: { value, onChange, onBlur } }) => (
                 <FormTextInput
-                  label="Age*"
+                  label={STRINGS[lang].age}
                   value={String(value ?? "")}
                   onChangeText={onChange}
                   onBlur={onBlur}
@@ -314,9 +440,9 @@ export default function EventRegisterScreen() {
             <Controller
               control={control}
               name="contact"
-              render={({ field: { value, onChange, onBlur } }) => (
+              render={({ field: { value, onChange, onBlur} }) => (
                 <FormTextInput
-                  label="Contact Number*"
+                  label={STRINGS[lang].contact}
                   value={value}
                   onChangeText={onChange}
                   onBlur={onBlur}
@@ -332,7 +458,7 @@ export default function EventRegisterScreen() {
               name="email"
               render={({ field: { value, onChange, onBlur } }) => (
                 <FormTextInput
-                  label="Email"
+                  label={STRINGS[lang].email}
                   value={value}
                   onChangeText={onChange}
                   onBlur={onBlur}
@@ -348,7 +474,7 @@ export default function EventRegisterScreen() {
               name="address"
               render={({ field: { value, onChange, onBlur } }) => (
                 <FormTextInput
-                  label="Address"
+                  label={STRINGS[lang].address}
                   value={value}
                   onChangeText={onChange}
                   onBlur={onBlur}
@@ -359,12 +485,11 @@ export default function EventRegisterScreen() {
             />
 
             <PrimaryButton
-              title={submitting ? "Submitting..." : "Submit"}
+              title={submitting ? "Submitting..." : STRINGS[lang].submit}
               onPress={handleSubmit(onSubmit)}
               disabled={submitting}
             />
 
-            {/* Spacer so the button isn't hidden by keyboard */}
             <View style={{ height: 24 }} />
           </ScrollView>
         </TouchableWithoutFeedback>
@@ -374,21 +499,62 @@ export default function EventRegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: "#fff" },
-  title: { fontSize: 20, fontWeight: "800", marginBottom: 12 },
-  eventBox: {
-    backgroundColor: "#F4F6FF",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 14,
+  container: { padding: 18, backgroundColor: C.bg },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10
   },
-  eventName: { fontWeight: "800", fontSize: 16, marginBottom: 4 },
-  eventMeta: { color: "#333" },
-  pickerBox: {
+  title: { fontSize: 22, fontWeight: "900", color: C.text, flex: 1 },
+  langChips: { flexDirection: "row", gap: 8 },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
+    borderColor: C.border,
+  },
+  chipActive: { backgroundColor: C.primary, borderColor: C.primary },
+  chipText: { color: C.text, fontWeight: "800", fontSize: 12 },
+  chipTextActive: { color: "#fff" },
+
+  eventBox: {
+    flexDirection: "row",
+    backgroundColor: C.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    marginBottom: 14,
     overflow: "hidden",
   },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  eventAccent: { width: 6, backgroundColor: C.primary },
+  eventName: {
+    fontWeight: "900",
+    fontSize: 16,
+    marginBottom: 4,
+    color: C.text,
+    paddingTop: 12,
+    paddingHorizontal: 12,
+  },
+  eventMeta: { color: C.sub, paddingHorizontal: 12, paddingBottom: 6 },
+
+  inputLabel: { fontWeight: "700", marginBottom: 6, color: C.text },
+
+  genderRow: { flexDirection: "row", gap: 10 },
+  genderChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  genderChipActive: { backgroundColor: C.primary, borderColor: C.primary },
+  genderChipText: { color: C.text, fontWeight: "800" },
+  genderChipTextActive: { color: "#fff" },
+
+  errorText: { color: "#E11D48", marginTop: 4 },
 });

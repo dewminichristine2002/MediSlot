@@ -5,6 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CommonActions } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 
 import FormTextInput from '../components/FormTextInput';
 import PrimaryButton from '../components/PrimaryButton';
@@ -19,6 +20,7 @@ const schema = z.object({
 export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { control, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
@@ -33,21 +35,14 @@ export default function LoginScreen({ navigation }) {
       // update auth context
       await signIn({ token: data.token, user: data.user });
 
-      // 1) ensure Home tab is focused
+      // ensure Home tab/stack selected and remove Login from history
       navigation.getParent()?.navigate('HomeTab');
-
-      // 2) reset HomeStack so Login is removed from history
       navigation.dispatch(
         CommonActions.reset({
           index: 0,
           routes: [{ name: 'Home' }],
         })
       );
-
-      // Alternative (shorter):
-      // navigation.getParent()?.navigate('HomeTab');
-      // navigation.replace('Home');
-
     } catch (err) {
       const msg = err?.response?.data?.message || 'Login failed';
       Alert.alert('Error', msg);
@@ -58,8 +53,11 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, padding: 20, justifyContent: 'center' }}>
-      <Text style={{ fontSize: 28, fontWeight: '800', marginBottom: 24 }}>Welcome back</Text>
+      <Text style={{ fontSize: 28, fontWeight: '800', marginBottom: 24 }}>
+        Welcome back
+      </Text>
 
+      {/* Email */}
       <Controller
         control={control}
         name="email"
@@ -75,19 +73,42 @@ export default function LoginScreen({ navigation }) {
         )}
       />
 
-      <Controller
-        control={control}
-        name="password"
-        render={({ field: { onChange, value } }) => (
-          <FormTextInput
-            label="Password"
-            secureTextEntry
-            value={value}
-            onChangeText={onChange}
-            error={errors.password?.message}
+      {/* Password with eye toggle */}
+      <View style={{ position: 'relative' }}>
+        <Controller
+          control={control}
+          name="password"
+          render={({ field: { onChange, value } }) => (
+            <FormTextInput
+              label="Password"
+              secureTextEntry={!showPassword}
+              value={value}
+              onChangeText={onChange}
+              error={errors.password?.message}
+            />
+          )}
+        />
+
+        <Pressable
+          onPress={() => setShowPassword((s) => !s)}
+          accessibilityRole="button"
+          accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+          hitSlop={10}
+          style={{
+            position: 'absolute',
+            right: 12,
+            // Adjust this "top" to match your FormTextInput vertical spacing.
+            // If your input has a taller label, you may tweak this (e.g., 34–40).
+            top: 36,
+            padding: 4,
+          }}
+        >
+          <Ionicons
+            name={showPassword ? 'eye-off' : 'eye'}
+            size={22}
           />
-        )}
-      />
+        </Pressable>
+      </View>
 
       <PrimaryButton title="Login" onPress={handleSubmit(onSubmit)} loading={loading} />
 
@@ -96,7 +117,10 @@ export default function LoginScreen({ navigation }) {
         style={{ marginTop: 16, alignItems: 'center' }}
       >
         <Text>
-          New here? <Text style={{ color: '#2563eb', fontWeight: '700' }}>Create an account</Text>
+          New here?{' '}
+          <Text style={{ color: '#2563eb', fontWeight: '700' }}>
+            Create an account
+          </Text>
         </Text>
       </Pressable>
     </View>

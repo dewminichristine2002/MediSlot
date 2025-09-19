@@ -43,7 +43,7 @@ function FreeEventsStack() {
   return (
     <Stack.Navigator screenOptions={{ headerTitleAlign: 'center' }}>
       <Stack.Screen name="FreeEvents" component={FreeEventsScreen} options={{ title: 'Free Events' }} />
-      <Stack.Screen name="EventRegister" component={EventRegisterScreen} options={{ title: 'Register for Event' }} />
+      <Stack.Screen name="EventRegister" component={EventRegisterScreen} options={{ title: 'Event Registration' }} />
     </Stack.Navigator>
   );
 }
