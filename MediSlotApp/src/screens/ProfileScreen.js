@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
+// src/screens/ProfileScreen.js
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +9,7 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  Image,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,18 +18,18 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as WebBrowser from 'expo-web-browser';
 import { getApiBaseUrl } from '../api/config';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 export default function ProfileScreen({ route }) {
+  const navigation = useNavigation();
   const { user } = useAuth();
   const [showRegs, setShowRegs] = useState(false);
   const [showLab, setShowLab] = useState(false);
   const scrollRef = useRef(null);
 
-  // 👇 NEW: if navigated with { openLab: true }, open the Lab section and scroll to it
   useEffect(() => {
     if (route?.params?.openLab) {
       setShowLab(true);
-      // slight delay so content renders before scrolling
       setTimeout(() => {
         try {
           scrollRef.current?.scrollToEnd({ animated: true });
@@ -38,7 +40,7 @@ export default function ProfileScreen({ route }) {
 
   return (
     <View style={{ flex: 1, paddingTop: 60 }}>
-      {/* Profile header (non-scrollable) */}
+      {/* Profile header */}
       <View style={{ paddingHorizontal: 20, marginBottom: 10 }}>
         <Text style={{ fontSize: 24, fontWeight: '800', marginBottom: 16 }}>My Profile</Text>
         <Text style={{ marginBottom: 6 }}>Name: {user?.name}</Text>
@@ -48,7 +50,7 @@ export default function ProfileScreen({ route }) {
         <Text style={{ marginBottom: 20 }}>Address: {user?.address}</Text>
 
         {/* Buttons row */}
-        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
           <TouchableOpacity
             style={[styles.btn, styles.primary]}
             activeOpacity={0.85}
@@ -84,13 +86,43 @@ export default function ProfileScreen({ route }) {
   );
 }
 
-/* ------------------ Event Registrations (yours) ------------------ */
+/* ------------------ Event Registrations ------------------ */
 function MyEventRegs() {
   const { user } = useAuth();
   const patientId = user?._id;
 
   const [loading, setLoading] = useState(true);
   const [regs, setRegs] = useState([]);
+
+  // Group-sort: Upcoming/TODAY (ascending), then Past (descending)
+  const sortByUpcomingFirst = (arr) => {
+    const items = Array.isArray(arr) ? [...arr] : [];
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const upcoming = [];
+    const past = [];
+    const noDate = [];
+
+    for (const it of items) {
+      const d = it?.event_date ? new Date(it.event_date) : null;
+      if (!d || isNaN(d.getTime())) {
+        noDate.push(it);
+      } else if (d >= todayStart) {
+        upcoming.push(it);
+      } else {
+        past.push(it);
+      }
+    }
+
+    // Upcoming: earliest first
+    upcoming.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
+    // Past: most recent first
+    past.sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
+
+    // Upcoming at top, then past, then items with no date at the bottom
+    return [...upcoming, ...past, ...noDate];
+  };
 
   const refresh = async () => {
     try {
@@ -104,13 +136,14 @@ function MyEventRegs() {
 
       const data = await res.json();
       const items = Array.isArray(data?.items) ? data.items : [];
-      setRegs(items);
-      await AsyncStorage.setItem('my_event_regs', JSON.stringify(items));
+      const sorted = sortByUpcomingFirst(items);
+      setRegs(sorted);
+      await AsyncStorage.setItem('my_event_regs', JSON.stringify(sorted));
     } catch (err) {
       console.warn('Loading registrations failed → using local cache:', err.message);
       const localStr = await AsyncStorage.getItem('my_event_regs');
       const local = localStr ? JSON.parse(localStr) : [];
-      setRegs(local);
+      setRegs(sortByUpcomingFirst(local));
     } finally {
       setLoading(false);
     }
@@ -125,6 +158,12 @@ function MyEventRegs() {
     refresh();
   }, [patientId]);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (patientId) refresh();
+    }, [patientId])
+  );
+
   const cancelRegistration = async (registration_id) => {
     try {
       const t = await AsyncStorage.getItem('token');
@@ -136,7 +175,7 @@ function MyEventRegs() {
       );
 
       if (!res.ok) throw new Error('Cancel failed');
-      Alert.alert('Cancelled', 'Your registration was cancelled. The next person in the waitlist will be promoted automatically.');
+      Alert.alert('Cancelled', 'Your registration was cancelled.');
       await refresh();
     } catch (e) {
       Alert.alert('Error', e.message || 'Could not cancel');
@@ -160,67 +199,89 @@ function MyEventRegs() {
     );
   }
 
+  // Start of today for consistent checks
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+
   return (
     <View style={{ marginTop: 16 }}>
       <Text style={{ fontSize: 18, fontWeight: '800', marginBottom: 10 }}>My Event Registrations</Text>
       <FlatList
         data={regs}
-        keyExtractor={(item, idx) => item?.registration_id ?? `reg-${idx}`}
+        keyExtractor={(item, idx) => String(item?.registration_id ?? item?._id ?? `reg-${idx}`)}
         contentContainerStyle={{ gap: 12 }}
         scrollEnabled={false}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.eventName}>{item?.event_name || 'Event'}</Text>
+        renderItem={({ item }) => {
+          const eventDate = item?.event_date ? new Date(item.event_date) : null;
 
-              {!!item?.event_date && (
-                <Text style={styles.meta}>
-                  {new Date(item.event_date).toLocaleDateString()}
-                  {item.event_time ? ` at ${item.event_time}` : ''}
-                </Text>
-              )}
+          // Hide cancel if the day has passed (i.e., event date < start of today),
+          // or already attended/cancelled.
+          const hideCancel =
+            !eventDate ||
+            eventDate < startOfToday ||
+            ['attended', 'cancelled'].includes(item?.registration_status);
 
-              {!!item?.event_location && <Text style={styles.meta}>{item.event_location}</Text>}
+          return (
+            <View style={styles.card}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.eventName}>{item?.event_name || 'Event'}</Text>
 
-              <Text style={styles.status}>
-                Status: {item.registration_status}
-                {item.registration_status === 'waitlist' && item.waitlist_position != null
-                  ? ` (Pos ${item.waitlist_position})`
-                  : ''}
-              </Text>
-
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-                {item.registration_status !== 'cancelled' && (
-                  <TouchableOpacity
-                    style={[styles.linkBtn, { borderColor: '#EF4444' }]}
-                    onPress={() => cancelRegistration(item.registration_id)}
-                  >
-                    <Text style={[styles.linkBtnText, { color: '#EF4444' }]}>Cancel</Text>
-                  </TouchableOpacity>
+                {!!eventDate && (
+                  <Text style={styles.meta}>
+                    {eventDate.toLocaleDateString()}
+                    {item?.event_time ? ` at ${item.event_time}` : ''}
+                  </Text>
                 )}
+
+                {!!item?.event_location && <Text style={styles.meta}>{item.event_location}</Text>}
+
+                <Text style={styles.status}>
+                  Status: {item?.registration_status}
+                  {item?.registration_status === 'waitlist' && item?.waitlist_position != null
+                    ? ` (Pos ${item.waitlist_position})`
+                    : ''}
+                </Text>
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                  {!hideCancel && (
+                    <TouchableOpacity
+                      style={[styles.linkBtn, { borderColor: '#EF4444' }]}
+                      onPress={() => cancelRegistration(item.registration_id)}
+                    >
+                      <Text style={[styles.linkBtnText, { color: '#EF4444' }]}>Cancel</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              <View style={styles.qrBox}>
+                {item?.qr_code ? (
+                  <Image
+                    source={{ uri: item.qr_code }}
+                    style={{ width: 96, height: 96, borderRadius: 8 }}
+                  />
+                ) : (
+                  <QRCode
+                    value={JSON.stringify({
+                      t: 'event_reg',
+                      regId: item?.registration_id,
+                      eventId: item?.event_id,
+                      userId: patientId,
+                    })}
+                    size={96}
+                  />
+                )}
+                <Text style={styles.qrCaption}>Show this at check-in</Text>
               </View>
             </View>
-
-            <View style={styles.qrBox}>
-              <QRCode
-                value={JSON.stringify({
-                  t: 'event_reg',
-                  regId: item.registration_id,
-                  eventId: item.event_id,
-                  userId: patientId,
-                })}
-                size={96}
-              />
-              <Text style={styles.qrCaption}>Show this at check-in</Text>
-            </View>
-          </View>
-        )}
+          );
+        }}
       />
     </View>
   );
 }
 
-/* ------------------ My Lab Test Results (enhanced) ------------------ */
+/* ------------------ My Lab Test Results ------------------ */
 function MyLabTestResults() {
   const { user } = useAuth();
   const userId = user?._id;
@@ -391,7 +452,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
+    flexGrow: 1,
   },
   primary: { backgroundColor: '#2563EB' },
   primaryText: { color: '#fff' },
