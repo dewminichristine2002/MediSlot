@@ -24,24 +24,24 @@ import AdminScanScreen from '../screens/AdminScanScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-/** ---------- USER STACKS (Shown only to non-admins via tabs) ---------- */
+/** ---------- USER STACKS (Shown only to non-admins via tabs) headerShown: false---------- */
 function HomeStack() {
   return (
-    <Stack.Navigator initialRouteName="Home" screenOptions={{ headerTitleAlign: 'center' }}>
-      <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
-      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
-      <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Login' }} />
-      <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Register' }} />
-      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' }} />
+    <Stack.Navigator initialRouteName="Home" screenOptions={{ headerTitleAlign: 'center'}}>
+      <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'MediSlot' }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications', headerShown: false }} />
+      <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Login',headerShown: false }} />
+      <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Register',headerShown: false }} />
+      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' , headerShown: false}} />
       {/* Keep AdminScan here only if you want to deep-link it; otherwise remove */}
-      <Stack.Screen name="AdminScan" component={AdminScanScreen} options={{ title: 'Admin – Scan QR' }} />
+      <Stack.Screen name="AdminScan" component={AdminScanScreen} options={{ title: 'Admin – Scan QR',headerShown: false }} />
     </Stack.Navigator>
   );
 }
 
 function FreeEventsStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerTitleAlign: 'center' }}>
+    <Stack.Navigator screenOptions={{ headerTitleAlign: 'center', headerShown: false}}>
       <Stack.Screen name="FreeEvents" component={FreeEventsScreen} options={{ title: 'Free Events' }} />
       <Stack.Screen name="EventRegister" component={EventRegisterScreen} options={{ title: 'Event Registration' }} />
     </Stack.Navigator>
@@ -84,9 +84,9 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="HomeTab" component={HomeStack} options={{ title: 'Home' }} />
-      <Tab.Screen name="FreeEventsTab" component={FreeEventsStack} options={{ title: 'Free Events' }} />
-      <Tab.Screen name="HealthCentersTab" component={HealthCentersStack} options={{ title: 'Health Centers' }} />
-      <Tab.Screen name="GuidelinesTab" component={GuidelinesStack} options={{ title: 'Guidelines' }} />
+      <Tab.Screen name="FreeEventsTab" component={FreeEventsStack} options={{ title: 'Free Events',headerShown: false }} />
+      <Tab.Screen name="HealthCentersTab" component={HealthCentersStack} options={{ title: 'Health Centers',headerShown: false }} />
+      <Tab.Screen name="GuidelinesTab" component={GuidelinesStack} options={{ title: 'Guidelines',headerShown: false }} />
     </Tab.Navigator>
   );
 }
@@ -94,12 +94,12 @@ function MainTabs() {
 /** ---------- ADMIN-ONLY STACK (No tabs, no Notifications route) ---------- */
 function AdminStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerTitleAlign: 'center' }}>
-      <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
-      <Stack.Screen name="AdminScan" component={AdminScanScreen} options={{ title: 'Admin – Scan QR' }} />
-      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Admin Profile' }} />
-      <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Login' }} />
-      <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Register' }} />
+    <Stack.Navigator screenOptions={{ headerTitleAlign: 'center', }}>
+      <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'MediSlot' }} />
+      <Stack.Screen name="AdminScan" component={AdminScanScreen} options={{ title: 'Admin – Scan QR',headerShown: false}} />
+      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Admin Profile',headerShown: false }} />
+      <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Login',headerShown: false }} />
+      <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Register',headerShown: false }} />
       {/* Intentionally NOT adding Notifications here for admins */}
     </Stack.Navigator>
   );
