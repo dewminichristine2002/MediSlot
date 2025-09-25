@@ -1,18 +1,21 @@
+// App.js
+import 'react-native-gesture-handler';
+import React from 'react';
+import { StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
-import AuthProvider from './src/context/AuthContext';   // ✅ default import
-import RootNavigator from './src/navigation'; 
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import AuthProvider from './src/context/AuthContext';
+import RootNavigator from './src/navigation';
 
 export default function App() {
   return (
-    /*<View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>*/
-    <AuthProvider>
-      <StatusBar style="dark" />
-      <RootNavigator />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <StatusBar style="dark" />
+        <RootNavigator />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
