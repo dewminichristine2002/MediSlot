@@ -1,8 +1,8 @@
 // controllers/eventRegistrationController.js
 const mongoose = require('mongoose');
 const QRCode = require('qrcode');
-const EventRegistration = require('../models/EventRegistration');
-const Event = require('../models/Event');
+const EventRegistration = require('../../models/EventRegistration');
+const Event = require('../../models/Event');
 
 const isValidId = (id) => mongoose.isValidObjectId(id);
 
