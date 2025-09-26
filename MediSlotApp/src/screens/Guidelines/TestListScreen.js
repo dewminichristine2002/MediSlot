@@ -1,7 +1,23 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput } from "react-native";
+import {
+  View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
+  RefreshControl, TextInput
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { fetchTests } from "../../api/tests";
+
+const C = {
+  bg: "#F9FAFB",
+  text: "#0F172A",
+  g1: "#2563EB",
+  g2: "#06B6D4",
+};
+
+const UI = {
+  en: { titleTop: "Lab Tests", searchPh: "Search tests", loading: "Loading tests…", empty: "No tests found." },
+  si: { titleTop: "පරීක්ෂණ", searchPh: "පරීක්ෂණ සෙවුම්", loading: "පරීක්ෂණ පූරණය වෙමින්…", empty: "පරීක්ෂණ නොමැත." },
+};
 
 export default function TestListScreen({ route, navigation }) {
   const { category } = route.params || {};
@@ -9,6 +25,8 @@ export default function TestListScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [q, setQ] = useState("");
+  const [lang, setLang] = useState("en");
+  const L = UI[lang];
 
   const load = useCallback(async () => {
     try {
@@ -24,26 +42,51 @@ export default function TestListScreen({ route, navigation }) {
 
   useEffect(() => { load(); }, [load]);
 
-  return (
-    <View style={{ flex: 1 }}>
-      {/* simple search */}
+  const Header = () => (
+    <LinearGradient colors={[C.g1, C.g2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={10}>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={styles.headerTitle}>
+            {L.titleTop}{"\n"}<Text style={styles.mediSlotTitle}>{category || (lang === "si" ? "සියල්ල" : "All")}</Text>
+          </Text>
+        </View>
+
+        {/* Language toggle only */}
+        <TouchableOpacity onPress={() => setLang(prev => (prev === "en" ? "si" : "en"))} hitSlop={10}>
+          <Ionicons name="language-outline" size={22} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Search under header */}
       <View style={styles.searchRow}>
-        <Ionicons name="search-outline" size={18} />
+        <Ionicons name="search-outline" size={18} color="#64748b" />
         <TextInput
           style={styles.input}
-          placeholder="Search tests"
+          placeholder={L.searchPh}
           value={q}
           onChangeText={setQ}
           returnKeyType="search"
           onSubmitEditing={load}
         />
-        <TouchableOpacity onPress={load}><Ionicons name="arrow-forward-circle-outline" size={22} /></TouchableOpacity>
+        <TouchableOpacity onPress={load}>
+          <Ionicons name="arrow-forward-circle-outline" size={22} color="#fff" />
+        </TouchableOpacity>
       </View>
+    </LinearGradient>
+  );
+
+  return (
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <Header />
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" />
-          <Text style={styles.muted}>Loading tests…</Text>
+          <ActivityIndicator size="large" color={C.g1} />
+          <Text style={styles.muted}>{L.loading}</Text>
         </View>
       ) : (
         <FlatList
@@ -65,7 +108,7 @@ export default function TestListScreen({ route, navigation }) {
               <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
             </TouchableOpacity>
           )}
-          ListEmptyComponent={<Text style={[styles.muted, { padding: 16 }]}>No tests found.</Text>}
+          ListEmptyComponent={<Text style={[styles.muted, { padding: 16 }]}>{L.empty}</Text>}
         />
       )}
     </View>
@@ -73,29 +116,29 @@ export default function TestListScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+  header: {
+    width: "100%", alignSelf: "stretch",
+    paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14,
+    borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
+  },
+  headerRow: { marginTop: 46, flexDirection: "row", alignItems: "center" },
+  headerTitle: { fontSize: 20, fontWeight: "900", color: "#FFFFFF", lineHeight: 26 },
+  mediSlotTitle: { fontSize: 24, fontWeight: "900", color: "#FFFFFF" },
+
   searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#fff",
-    margin: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    elevation: 1
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#ffffff", marginTop: 12,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: 12, elevation: 1
   },
   input: { flex: 1, paddingVertical: 6 },
+
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   muted: { color: "#6b7280" },
   rowCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: "#fff",
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 10,
-    elevation: 1
+    flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: "#fff", padding: 14, borderRadius: 14,
+    marginBottom: 10, elevation: 1
   },
   rowIcon: {
     width: 36, height: 36, borderRadius: 18,

@@ -15,8 +15,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import FreeEventsScreen from '../screens/FreeEventsScreen';
 import HealthCentersScreen from '../screens/HealthCentersScreen';
 import EventRegisterScreen from "../screens/EventRegisterScreen";
-import GuidelinesScreen from '../screens/GuidelinesScreen';
-import EventRegisterScreen from '../screens/EventRegisterScreen';
+
 import NotificationsScreen from '../screens/NotificationsScreen';
 
 // Screens (admin side)
@@ -26,6 +25,8 @@ import AdminScanScreen from '../screens/AdminScanScreen';
 import TestCategoriesScreen from '../screens/Guidelines/TestCategoriesScreen';
 import TestListScreen from '../screens/Guidelines/TestListScreen';
 import TestDetailsScreen from '../screens/Guidelines/TestDetailsScreen';
+import HealthAwarenessListScreen from "../screens/HealthAwarenessListScreen";
+import HealthAwarenessDetailScreen from "../screens/HealthAwarenessDetailScreen";
 
 
 const Stack = createNativeStackNavigator();
@@ -34,12 +35,14 @@ const Tab = createBottomTabNavigator();
 /** ---------- USER STACKS (Shown only to non-admins via tabs) headerShown: false---------- */
 function HomeStack() {
   return (
-    <Stack.Navigator initialRouteName="Home" screenOptions={{ headerTitleAlign: 'center'}}>
-      <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'MediSlot' }} />
+    <Stack.Navigator initialRouteName="Home" screenOptions={{ headerTitleAlign: 'center', }}>
+      <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'MediSlot' , headerShown: false}} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications', headerShown: false }} />
       <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Login',headerShown: false }} />
       <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Register',headerShown: false }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' , headerShown: false}} />
+      <Stack.Screen name="HealthAwarenessList" component={HealthAwarenessListScreen} options={{ title: 'Health Awareness List',headerShown: false }}/>
+      <Stack.Screen name="HealthAwarenessDetail" component={HealthAwarenessDetailScreen} options={{ title: 'Health Awareness Details',headerShown: false }} />
       {/* Keep AdminScan here only if you want to deep-link it; otherwise remove */}
       <Stack.Screen name="AdminScan" component={AdminScanScreen} options={{ title: 'Admin – Scan QR',headerShown: false }} />
     </Stack.Navigator>
@@ -68,7 +71,7 @@ function GuidelinesStack() {
   return (
     <Stack.Navigator
       initialRouteName="TestCategories"
-      screenOptions={{ headerTitleAlign: 'center' }}
+      screenOptions={{ headerTitleAlign: 'center', headerShown: false}}
     >
       <Stack.Screen
         name="TestCategories"
@@ -85,11 +88,10 @@ function GuidelinesStack() {
         component={TestDetailsScreen}
         options={({ route }) => ({ title: route.params?.name || 'Test Details' })}
       />
-    <Stack.Navigator screenOptions={{ headerTitleAlign: 'center' }}>
-      <Stack.Screen name="Guidelines" component={GuidelinesScreen} options={{ title: 'Guidelines' }} />
     </Stack.Navigator>
   );
 }
+
 
 /** ---------- TABS (Non-admin only) ---------- */
 function MainTabs() {
@@ -111,9 +113,6 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="HomeTab" component={HomeStack} options={{ title: 'Home' }} />
-      <Tab.Screen name="FreeEventsTab" component={FreeEventsStack} options={{ title: 'Free Events' }} />
-      <Tab.Screen name="HealthCentersTab" component={HealthCentersStack} options={{ title: 'Health Centers' }} />
-      <Tab.Screen name="GuidelinesTab" component={GuidelinesStack} options={{ title: 'Lab Tests' }} />
       <Tab.Screen name="FreeEventsTab" component={FreeEventsStack} options={{ title: 'Free Events',headerShown: false }} />
       <Tab.Screen name="HealthCentersTab" component={HealthCentersStack} options={{ title: 'Health Centers',headerShown: false }} />
       <Tab.Screen name="GuidelinesTab" component={GuidelinesStack} options={{ title: 'Guidelines',headerShown: false }} />
@@ -148,4 +147,5 @@ export default function RootNavigator() {
       {isAdmin ? <AdminStack /> : <MainTabs />}
     </NavigationContainer>
   );
+  
 }
