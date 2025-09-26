@@ -1,10 +1,11 @@
 const router = require("express").Router();
 const c = require("../controllers/centers.controller");
 
-router.get("/", c.listCenters);              // list + filters + openNow
-router.get("/nearby", c.nearbyCenters);      // geo
-router.get("/:id", c.getCenterById);         // details
-router.get("/:id/tests", c.getCenterTests);  // tests offered by center
+// public
+router.get("/", c.listCenters);
+router.get("/nearby", c.nearbyCenters);
+router.get("/:id", c.getCenterById);
+router.get("/:id/tests", c.getCenterTests); // merged Test + per-center fields (supports ?lang=si)
 
 // admin
 router.post("/", c.createCenter);

@@ -1,10 +1,10 @@
 const router = require("express").Router();
 const s = require("../controllers/centerService.controller");
 
-// query centers that offer a given test (by name)
+// query
 router.get("/by-test", s.centersByTestName);
 
-// admin: link/unlink or update mapping
+// admin
 router.post("/", s.attachTestToCenter);
 router.put("/:id", s.updateCenterService);
 

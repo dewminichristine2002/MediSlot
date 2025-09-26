@@ -57,6 +57,9 @@ app.use("/api/tests", testRoutes);
 app.use("/api/user-checklists", userChecklistRoutes);
 
 app.use("/api/users", require("./routes/userRoutes"));
+app.use("/api/centers", require("./routes/centers.routes"));
+app.use("/api/tests", require("./routes/tests.routes"));
+app.use("/api/center-services", require("./routes/centerService.routes"));
 
 // Routes
 app.use('/api/events', require('./routes/freeEventsRoutes/eventRoutes'));
