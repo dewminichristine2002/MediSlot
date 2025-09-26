@@ -160,6 +160,8 @@ export default function ProfileScreen({ route }) {
 
         {/* Segmented control — HIDE for admins */}
         {!isAdmin && (
+        <View style={styles.segmentWrapper}>
+          {/* Top Row */}
           <View style={styles.segment}>
             <SegmentButton
               icon="calendar-outline"
@@ -180,7 +182,29 @@ export default function ProfileScreen({ route }) {
               }}
             />
           </View>
-        )}
+
+          {/* Bottom Row with two new buttons */}
+          <View style={styles.segment}>
+            <SegmentButton
+              icon="clipboard-outline"
+              active={false}
+              label="My Bookings"
+              onPress={() => {
+                // handle navigation or toggle
+              }}
+            />
+            <SegmentButton
+              icon="checkmark-done-outline"
+              active={false}
+              label="My Check List"
+              onPress={() => {
+                // handle navigation or toggle
+              }}
+            />
+          </View>
+        </View>
+      )}
+
       </LinearGradient>
 
       {/* Body */}
