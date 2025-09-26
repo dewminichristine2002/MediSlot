@@ -210,7 +210,7 @@ export default function CenterDetailsScreen({ route, navigation }) {
     })();
   }, [center?._id, token]);
 
-  // --- Directions (with your iOS snippet added) ---
+  // --- Directions: Google Maps first everywhere ---
   const openExternalDirections = async () => {
     const ll = getLatLng(center);
     const addr = formatAddress(center.address)?.trim();
@@ -223,19 +223,18 @@ export default function CenterDetailsScreen({ route, navigation }) {
 
     try {
       if (Platform.OS === "ios") {
-        // iOS: prefer Google Maps if installed; otherwise Apple Maps
-        const canOpenGoogle = await Linking.canOpenURL("comgooglemaps://");
-        if (canOpenGoogle) {
+        const hasGoogleApp = await Linking.canOpenURL("comgooglemaps://");
+        if (hasGoogleApp) {
           return Linking.openURL(`comgooglemaps://?saddr=&daddr=${dest}&directionsmode=driving`);
         }
-        // Apple Maps fallback (may show "Directions Not Available" in unsupported regions)
-        return Linking.openURL(`https://maps.apple.com/?saddr=Current%20Location&daddr=${dest}&dirflg=d`);
+        // Fallback to Google Maps on the web
+        return Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`);
       }
 
-      // Android → Google Maps
+      // Android
       return Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`);
     } catch (e) {
-      Alert.alert("Couldn’t open maps", e?.message || "Unknown error.");
+      Alert.alert("Couldn't open Google Maps", e?.message || "Unknown error.");
     }
   };
 
