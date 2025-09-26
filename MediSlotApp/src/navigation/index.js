@@ -16,6 +16,8 @@ import FreeEventsScreen from '../screens/FreeEventsScreen';
 import HealthCentersScreen from '../screens/HealthCentersScreen';
 import GuidelinesScreen from '../screens/GuidelinesScreen';
 import EventRegisterScreen from "../screens/EventRegisterScreen";
+import HealthCentersMapScreen from '../screens/HealthCentersMapScreen';
+import CenterDetailsScreen from '../screens/CenterDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -57,11 +59,21 @@ function FreeEventsStack() {
 
 function HealthCentersStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerTitleAlign: 'center' }}>
+    <Stack.Navigator screenOptions={{ headerTitleAlign: 'center,headerShown: false' }}>
       <Stack.Screen
         name="HealthCenters"
         component={HealthCentersScreen}
         options={{ title: 'Health Centers' }}
+      />
+      <Stack.Screen
+        name="HealthCentersMap"
+        component={HealthCentersMapScreen}
+        options={{ title: 'Map View' }}
+      />
+      <Stack.Screen
+        name="CenterDetails"
+        component={CenterDetailsScreen}
+        options={{ title: 'Center Details' }}
       />
     </Stack.Navigator>
   );

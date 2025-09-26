@@ -34,6 +34,9 @@ app.use("/api/event-registrations", require("./routes/eventRegistrationRoutes"))
 app.use("/api/lab-tests", require("./routes/labTestResultRoutes"));
 app.use("/api/eventLabNotifications", require("./routes/eventLabNotificationRoutes"));
 app.use("/api/users", require("./routes/userRoutes"));
+app.use("/api/centers", require("./routes/centers.routes"));
+app.use("/api/tests", require("./routes/tests.routes"));
+app.use("/api/center-services", require("./routes/centerService.routes"));
 
 const PORT = process.env.PORT || 5000;
 // Bind to 0.0.0.0 so other devices can reach it
