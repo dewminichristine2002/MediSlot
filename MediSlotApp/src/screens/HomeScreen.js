@@ -189,6 +189,62 @@ export default function HomeScreen({ navigation }) {
       { text: 'Logout', style: 'destructive', onPress: () => signOut() },
     ]);
   }, [signOut]);
+  // --- Admin UI ---
+// --- Admin UI ---
+if (user && isAdmin) {
+  const initials =
+    (user?.name || '')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((s) => s[0]?.toUpperCase())
+      .join('') || 'U';
+
+  return (
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      {/* Gradient header with profile + logout */}
+      <LinearGradient
+        colors={[C.g1, C.g2]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ padding: 20, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 }}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 30 }}>
+          {/* Left: Title + subtitle */}
+          <View>
+            <Text style={{ fontSize: 22, fontWeight: '900', color: '#fff' }}>Admin Dashboard</Text>
+            <Text style={{ color: '#fff', marginTop: 4 }}>
+              {`Welcome ${user?.name || ''}`} • {(user?.user_category || 'Admin')}
+            </Text>
+          </View>
+
+          {/* Right: Profile + Logout */}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Pressable onPress={goProfile} hitSlop={10} style={{ marginRight: 14 }}>
+              <Ionicons name="person-circle-outline" size={28} color="#fff" />
+            </Pressable>
+            <Pressable onPress={handleLogout} hitSlop={10}>
+              <MaterialCommunityIcons name="logout" size={26} color="#fff" />
+            </Pressable>
+          </View>
+        </View>
+      </LinearGradient>
+
+      {/* Quick Action */}
+      <View style={{ padding: 20 }}>
+        <Text style={{ fontSize: 18, fontWeight: '800', marginBottom: 12 }}>Quick Action</Text>
+        <TouchableOpacity
+          style={{ alignItems: 'center', padding: 16, borderRadius: 12, backgroundColor: '#fff', elevation: 2 }}
+          onPress={() => navigation.navigate('AdminScan')}
+        >
+          <Ionicons name="qr-code-outline" size={26} color={C.primary} />
+          <Text style={{ marginTop: 8, fontWeight: '700', color: C.text }}>Scan QR</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -207,14 +263,15 @@ export default function HomeScreen({ navigation }) {
             <View style={s.headerActions}>
               {!isAdmin && (
                 <Pressable onPress={goNotifications} hitSlop={10} style={{ marginRight: 14 }}>
-                  <View style={s.iconWrap}>
-                    <Ionicons name="notifications-outline" size={24} color="#fff" />
-                    {notifCount > 0 && (
-                      <View style={s.badge}>
-                        <Text style={s.badgeText}>{notifCount > 99 ? "99+" : String(notifCount)}</Text>
-                      </View>
-                    )}
-                  </View>
+                <View style={s.iconWrap}>
+                  <Ionicons name="notifications-outline" size={24} color="#fff" />
+                  {notifCount > 0 && (
+                    <View style={s.notifBadge}>
+                      <Text style={s.notifBadgeText}>{notifCount > 99 ? "99+" : String(notifCount)}</Text>
+                    </View>
+                  )}
+                </View>
+
                 </Pressable>
               )}
               <Pressable onPress={goProfile} hitSlop={10} style={{ marginRight: 14 }}>
@@ -236,6 +293,27 @@ export default function HomeScreen({ navigation }) {
       <Animated.View style={{ opacity: fade, transform: [{ translateY: slideY }] }}>
         <VitalsBanner />
       </Animated.View>
+
+            {/* Small Intro + Booking Button */}
+      <Animated.View style={{ opacity: fade, transform: [{ translateY: slideY }] }}>
+        <View style={s.introWrap}>
+          <Text style={s.introText}>
+            Your health companion — book diagnostic tests at nearby centers with ease.
+          </Text>
+        <TouchableOpacity style={s.bookingBtn} onPress={() => navigation.navigate("Booking")}>
+          <LinearGradient
+            colors={[C.g1, C.g2]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ paddingVertical: 14, borderRadius: 10, alignItems: "center" }}
+          >
+            <Text style={s.bookingBtnText}>Book a Test</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        </View>
+      </Animated.View>
+
 
       {/* Section header for slider */}
       <Animated.View style={[s.sectionHeader, { opacity: fade, transform: [{ translateY: slideY }] }]}>
@@ -474,6 +552,7 @@ mediSlotTitle: { fontSize: 28, fontWeight: "900", color: "#FFFFFF" },
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
+    
   },
   bannerLeft: { width: 64, alignItems: "center", justifyContent: "center" },
   bannerRight: { width: 64, alignItems: "center", justifyContent: "center" },
@@ -533,4 +612,59 @@ mediSlotTitle: { fontSize: 28, fontWeight: "900", color: "#FFFFFF" },
 
   dotsRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 12 },
   dot: { height: 8, borderRadius: 999, backgroundColor: C.primary, marginHorizontal: 4 },
+
+  notifBadge: {
+  position: "absolute",
+  right: -6,
+  top: -6,
+  minWidth: 18,
+  height: 18,
+  paddingHorizontal: 4,
+  borderRadius: 9,
+  backgroundColor: "#ef4444",
+  alignItems: "center",
+  justifyContent: "center",
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.9)",
+},
+notifBadgeText: {
+  color: "#fff",
+  fontSize: 10,
+  fontWeight: "700",
+},
+introWrap: {
+  paddingHorizontal: 18,
+  paddingVertical: 16,
+  marginTop: 14,
+  marginBottom: 12,
+  backgroundColor: "#ffffff",
+  borderRadius: 14,
+  elevation: 3, // Android shadow
+  shadowColor: "#000", // iOS shadow
+  shadowOpacity: 0.08,
+  shadowRadius: 6,
+  shadowOffset: { width: 0, height: 3 },
+},
+introText: {
+  fontSize: 15,
+  color: "#1e293b",
+  marginBottom: 14,
+  textAlign: "center",
+  fontWeight: "500",
+  lineHeight: 20,
+},
+
+bookingBtn: {
+  alignSelf: "center",
+  width: "75%",
+  borderRadius: 10,
+  overflow: "hidden",
+},
+bookingBtnText: {
+  color: "#fff",
+  fontSize: 16,
+  fontWeight: "700",
+  textAlign: "center",
+},
+
 });
