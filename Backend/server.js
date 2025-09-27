@@ -1,4 +1,3 @@
-
 // server.js
 const express = require('express');
 const cors = require('cors');
@@ -7,41 +6,25 @@ const connectDB = require('./config/db');
 const fs = require('fs');
 const path = require('path');
 
-// Import your route modules (CommonJS style)
-const healthAwarenessRoutes = require("./routes/LabTests/healthAwarenessRoutes");
-const testRoutes = require("./routes/LabTests/labTestRoutes");
-const userChecklistRoutes = require("./routes/LabTests/userChecklistRoutes");
-
 dotenv.config();
 
 const app = express();
 
-// CORS (once)
+// --- Core middleware (once) ---
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
-
-// Health check endpoints
-app.get("/", (_req, res) => res.send("OK"));
-app.get("/healthz", (_req, res) => res.json({ ok: true }));
-
-// Body parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Ensure uploads directories exist (recursive)
+// --- Health checks (once) ---
+app.get("/", (_req, res) => res.send("OK"));
+app.get("/healthz", (_req, res) => res.json({ ok: true }));
+
+// --- Ensure uploads dir and serve static ---
 const uploadsRoot = path.join(__dirname, 'uploads');
-const reportsDir = path.join(uploadsRoot, 'reports');
-fs.mkdirSync(reportsDir, { recursive: true });
-
-// Serve static files (e.g., /uploads/reports/<file>)
+fs.mkdirSync(uploadsRoot, { recursive: true });
 app.use('/uploads', express.static(uploadsRoot));
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Health first (works even if DB fails)
-app.get('/', (_req, res) => res.send('OK'));
-app.get('/healthz', (_req, res) => res.json({ ok: true }));
-
-// Try DB, but don't exit in dev
+// --- Connect DB (non-fatal on dev) ---
 (async () => {
   try {
     await connectDB();
@@ -51,21 +34,28 @@ app.get('/healthz', (_req, res) => res.json({ ok: true }));
   }
 })();
 
-// Only mount the routes you actually have
-app.use("/api/health-awareness", healthAwarenessRoutes);
-app.use("/api/tests", testRoutes);
-app.use("/api/user-checklists", userChecklistRoutes);
+// --- Routes: mount each ONCE ---
+app.use("/api/health-awareness", require("./routes/LabTests/healthAwarenessRoutes"));
+app.use("/api/user-checklists", require("./routes/LabTests/userChecklistRoutes"));
+
+// Keep ONE tests route. If you want the generic tests CRUD, use this:
+app.use("/api/tests", require("./routes/tests.routes"));
+
+// If you actually need LabTests-specific endpoints (different from above),
+// keep this but give it a DIFFERENT base path to avoid collision, e.g.:
+// app.use("/api/lab-tests-meta", require("./routes/LabTests/labTestRoutes"));
 
 app.use("/api/users", require("./routes/userRoutes"));
+app.use("/api/centers", require("./routes/centers.routes"));
+app.use("/api/center-services", require("./routes/centerService.routes"));
 
-// Routes
 app.use('/api/events', require('./routes/freeEventsRoutes/eventRoutes'));
 app.use('/api/event-registrations', require('./routes/freeEventsRoutes/eventRegistrationRoutes'));
 app.use('/api/lab-tests', require('./routes/freeEventsRoutes/labTestResultRoutes'));
+app.use("/api/labtests", require("./routes/LabTests/labTestRoutes"));
 app.use('/api/eventLabNotifications', require('./routes/freeEventsRoutes/eventLabNotificationRoutes'));
 
-
-// 404 for unknown API routes
+// --- 404 for unknown API routes ---
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ message: 'Not Found' });
@@ -73,7 +63,7 @@ app.use((req, res, next) => {
   return next();
 });
 
-// Error handler (multer/fileFilter, JSON errors, etc.)
+// --- Error handler ---
 app.use((err, _req, res, _next) => {
   const status = err.status || 400;
   const message = err.message || 'Request error';
@@ -81,7 +71,7 @@ app.use((err, _req, res, _next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-const HOST = process.env.HOST || '0.0.0.0'; // bind so Expo devices can reach it
+const HOST = process.env.HOST || '0.0.0.0';
 app.listen(PORT, HOST, () => {
   console.log(`Server on http://${HOST}:${PORT}`);
 });
