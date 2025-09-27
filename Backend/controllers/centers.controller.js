@@ -1,43 +1,39 @@
+const mongoose = require("mongoose");
 const HealthCenter = require("../models/HealthCenter");
 const CenterService = require("../models/CenterService");
-const DiagnosticTest = require("../models/DiagnosticTest");
 
-// GET /api/centers
-// supports q (text), province, district, openNow
+// Helper: compute open/closed now from opening/closing_time (simple daily window, Asia/Colombo)
+function openNowDoc(openingField, closingField) {
+  return {
+    $let: {
+      vars: { now: { $dateToString: { format: "%H:%M", date: "$$NOW", timezone: "Asia/Colombo" } } },
+      in: { $and: [{ $lte: [openingField || "00:00", "$$now"] }, { $lt: ["$$now", closingField || "23:59"] }] }
+    }
+  };
+}
+
+// GET /api/centers?q=&province=&district=&openNow=true
 exports.listCenters = async (req, res) => {
   try {
     const { q, province, district, openNow } = req.query;
-
     const match = { isActive: true };
     if (province) match["address.province"] = province;
     if (district) match["address.district"] = district;
 
-    let pipeline = [{ $match: match }];
+    const pipeline = [{ $match: match }];
+    if (q) pipeline.unshift({ $match: { $text: { $search: q } } });
 
-    if (q) {
-      pipeline.unshift({ $match: { $text: { $search: q } } });
-    }
+    pipeline.push({ $addFields: { isOpenNow: openNowDoc("$opening_time", "$closing_time") } });
+    if (openNow === "true") pipeline.push({ $match: { isOpenNow: true } });
 
-    // compute open/closed now from opening_time/closing_time (simple daily window)
     pipeline.push({
-      $addFields: {
-        isOpenNow: {
-          $let: {
-            vars: { now: { $dateToString: { format: "%H:%M", date: "$$NOW", timezone: "Asia/Colombo" } } },
-            in: {
-              $and: [
-                { $lte: ["$opening_time", "$$now"] },
-                { $lt: ["$$now", "$closing_time"] }
-              ]
-            }
-          }
-        }
+      $project: {
+        name: 1, address: 1, contact: 1, email: 1, location: 1, services: 1,
+        opening_time: 1, closing_time: 1, isOpenNow: 1
       }
     });
 
-    if (openNow === "true") pipeline.push({ $match: { isOpenNow: true } });
-
-    const centers = await HealthCenter.aggregate(pipeline).limit(100);
+    const centers = await HealthCenter.aggregate(pipeline).limit(200);
     res.json(centers);
   } catch (e) {
     console.error(e);
@@ -61,12 +57,15 @@ exports.nearbyCenters = async (req, res) => {
           query: { isActive: true }
         }
       },
+      { $addFields: { isOpenNow: openNowDoc("$opening_time", "$closing_time") } },
+      { $addFields: { distanceKm: { $round: [{ $divide: ["$distanceMeters", 1000] }, 2] } } },
       {
-        $addFields: {
-          distanceKm: { $round: [{ $divide: ["$distanceMeters", 1000] }, 2] }
+        $project: {
+          name: 1, address: 1, contact: 1, email: 1, location: 1, services: 1,
+          opening_time: 1, closing_time: 1, isOpenNow: 1, distanceKm: 1
         }
       }
-    ]).limit(50);
+    ]).limit(100);
 
     res.json(centers);
   } catch (e) {
@@ -86,33 +85,86 @@ exports.getCenterById = async (req, res) => {
   }
 };
 
-// GET /api/centers/:id/tests  (tests available at a center)
+// ✅ GET /api/centers/:id/tests?lang=si
+// Merge medical content from Test.js + per-center fields from CenterService
 exports.getCenterTests = async (req, res) => {
   try {
-    const centerId = req.params.id;
-    const services = await CenterService.aggregate([
-      { $match: { health_center_id: HealthCenter.castObjectId ? HealthCenter.castObjectId(centerId) : require("mongoose").Types.ObjectId(centerId), isActive: true } },
-      { $lookup: { from: "diagnostictests", localField: "test_id", foreignField: "_id", as: "test" } },
+    const centerId = new mongoose.Types.ObjectId(req.params.id);
+    const lang = (req.query.lang || "").toLowerCase(); // "si" for Sinhala
+
+    const rows = await CenterService.aggregate([
+      { $match: { health_center_id: centerId, isActive: true } },
+      {
+        $lookup: {
+          from: "tests",                 // collection for models/Test.js (canonical)
+          localField: "test_id",
+          foreignField: "_id",
+          as: "test"
+        }
+      },
       { $unwind: "$test" },
+
+      // Build base + localized (Sinhala) objects to overlay
+      {
+        $addFields: {
+          _base: {
+            name: "$test.name",
+            what: "$test.what",
+            why: "$test.why",
+            preparation: "$test.preparation",
+            during: "$test.during",
+            after: "$test.after",
+            checklist: "$test.checklist",
+            mediaUrl: "$test.mediaUrl",
+          },
+          _si: {
+            name: "$test.translations.si.name",
+            what: "$test.translations.si.what",
+            why: "$test.translations.si.why",
+            preparation: "$test.translations.si.preparation",
+            during: "$test.translations.si.during",
+            after: "$test.translations.si.after",
+            checklist: "$test.translations.si.checklist",
+            mediaUrl: "$test.translations.si.mediaUrl",
+          }
+        }
+      },
+
+      // Overlay localized fields when lang=si, else use base
       {
         $project: {
-          _id: 0,
           test_id: "$test._id",
-          name: "$test.name",
+          test_code: "$test.testId",
           category: "$test.category",
-          price: { $ifNull: ["$price_override", "$test.price"] },
-          is_available: "$test.is_available"
+
+          name: { $ifNull: [ { $cond: [ { $eq: [lang, "si"] }, "$_si.name", null ] }, "$_base.name" ] },
+          what: { $ifNull: [ { $cond: [ { $eq: [lang, "si"] }, "$_si.what", null ] }, "$_base.what" ] },
+          why:  { $ifNull: [ { $cond: [ { $eq: [lang, "si"] }, "$_si.why",  null ] }, "$_base.why"  ] },
+          preparation: { $ifNull: [ { $cond: [ { $eq: [lang, "si"] }, "$_si.preparation", null ] }, "$_base.preparation" ] },
+          during:      { $ifNull: [ { $cond: [ { $eq: [lang, "si"] }, "$_si.during",      null ] }, "$_base.during"      ] },
+          after:       { $ifNull: [ { $cond: [ { $eq: [lang, "si"] }, "$_si.after",       null ] }, "$_base.after"       ] },
+          checklist:   { $ifNull: [ { $cond: [ { $eq: [lang, "si"] }, "$_si.checklist",   null ] }, "$_base.checklist"   ] },
+          mediaUrl:    { $ifNull: [ { $cond: [ { $eq: [lang, "si"] }, "$_si.mediaUrl",    null ] }, "$_base.mediaUrl"    ] },
+
+          // Per-center fields
+          price: "$price_override",
+          capacity: 1,
+          is_available: 1,
+          daily_count: 1
         }
-      }
+      },
+
+      { $sort: { name: 1 } }
     ]);
-    res.json(services);
+
+    res.json(rows);
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "Failed to fetch center tests" });
   }
 };
 
-// POST /api/centers  (admin create)
+// Admin: POST /api/centers
 exports.createCenter = async (req, res) => {
   try {
     const doc = await HealthCenter.create(req.body);
@@ -122,7 +174,7 @@ exports.createCenter = async (req, res) => {
   }
 };
 
-// PUT /api/centers/:id  (admin update)
+// Admin: PUT /api/centers/:id
 exports.updateCenter = async (req, res) => {
   try {
     const doc = await HealthCenter.findByIdAndUpdate(req.params.id, req.body, { new: true });

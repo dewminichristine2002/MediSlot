@@ -1,14 +1,22 @@
 const { Schema, model, Types } = require("mongoose");
 
-const centerServiceSchema = new Schema({
-  service_id: { type: String, unique: true, sparse: true }, // your custom id
-  health_center_id: { type: Types.ObjectId, ref: "HealthCenter", required: true, index: true },
-  test_id: { type: Types.ObjectId, ref: "DiagnosticTest", required: true, index: true },
-  price_override: Number,
-  capacity: Number,
-  isActive: { type: Boolean, default: true }
-}, { timestamps: true });
+const centerServiceSchema = new Schema(
+  {
+    health_center_id: { type: Types.ObjectId, ref: "HealthCenter", required: true, index: true },
+    test_id:         { type: Types.ObjectId, ref: "Test",        required: true, index: true },
 
-centerServiceSchema.index({ health_center_id: 1, test_id: 1 }, { unique: true });
+    price_override: Number,
+    capacity: Number,
+    is_available: { type: Boolean, default: true },
+    daily_count: Number,
+    isActive: { type: Boolean, default: true }
+  },
+  { timestamps: true }
+);
 
-module.exports = model("CenterService", centerServiceSchema); // centerservices
+centerServiceSchema.index(
+  { health_center_id: 1, test_id: 1 },
+  { unique: true, name: "uniq_center_test" }
+);
+
+module.exports = model("CenterService", centerServiceSchema);
