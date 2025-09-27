@@ -1,31 +1,45 @@
+const mongoose = require("mongoose");
 const CenterService = require("../models/CenterService");
-const HealthCenter = require("../models/HealthCenter");
-const DiagnosticTest = require("../models/DiagnosticTest");
 
-// GET /api/center-services/by-test?name=
+// GET /api/center-services/by-test?name=&category=
 exports.centersByTestName = async (req, res) => {
   try {
-    const { name } = req.query;
-    if (!name) return res.status(400).json({ error: "name is required" });
+    const { name, category } = req.query;
 
-    const pipeline = [
-      { $lookup: { from: "diagnostictests", localField: "test_id", foreignField: "_id", as: "test" } },
+    const rows = await CenterService.aggregate([
+      { $match: { isActive: true, is_available: true } },
+      { $lookup: { from: "tests", localField: "test_id", foreignField: "_id", as: "test" } },
       { $unwind: "$test" },
-      { $match: { "test.name": { $regex: name, $options: "i" }, isActive: true, "test.is_available": true } },
+      ...(name || category ? [{ $match: {
+        ...(name     ? { "test.name":     { $regex: name, $options: "i" } } : {}),
+        ...(category ? { "test.category": category } : {}),
+      }}] : []),
       { $lookup: { from: "healthcenters", localField: "health_center_id", foreignField: "_id", as: "center" } },
       { $unwind: "$center" },
-      { $match: { "center.isActive": true } },
       {
         $project: {
-          _id: 0,
-          center: { _id: "$center._id", name: "$center.name", district: "$center.address.district", province: "$center.address.province", location: "$center.location" },
-          test: { _id: "$test._id", name: "$test.name", category: "$test.category" },
-          price: { $ifNull: ["$price_override", "$test.price"] }
+          center: {
+            _id: "$center._id",
+            name: "$center.name",
+            district: "$center.address.district",
+            province: "$center.address.province",
+            location: "$center.location",
+            services: "$center.services"
+          },
+          test: {
+            _id: "$test._id",
+            code: "$test.testId",
+            name: "$test.name",
+            category: "$test.category"
+          },
+          price: "$price_override",
+          capacity: 1,
+          is_available: 1,
+          daily_count: 1
         }
       }
-    ];
+    ]);
 
-    const rows = await CenterService.aggregate(pipeline).limit(200);
     res.json(rows);
   } catch (e) {
     console.error(e);
@@ -33,17 +47,21 @@ exports.centersByTestName = async (req, res) => {
   }
 };
 
-// POST /api/center-services  (admin attach a test to a center)
+// POST /api/center-services
 exports.attachTestToCenter = async (req, res) => {
   try {
-    const doc = await CenterService.create(req.body); // needs health_center_id, test_id, optional price_override, capacity
+    const { health_center_id, test_id } = req.body;
+    if (!mongoose.isValidObjectId(health_center_id) || !mongoose.isValidObjectId(test_id)) {
+      return res.status(400).json({ error: "health_center_id and test_id must be valid ObjectId strings" });
+    }
+    const doc = await CenterService.create(req.body);
     res.status(201).json(doc);
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
 };
 
-// PUT /api/center-services/:id  (admin update mapping)
+// PUT /api/center-services/:id
 exports.updateCenterService = async (req, res) => {
   try {
     const doc = await CenterService.findByIdAndUpdate(req.params.id, req.body, { new: true });

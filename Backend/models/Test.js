@@ -1,23 +1,51 @@
-// Test.js
-import mongoose from "mongoose";
+// models/Test.js
+const mongoose = require("mongoose");
 const { Schema, model } = mongoose;
 
-const TestSchema = new Schema({
-  testId: { type: String, unique: true, required: true }, // e.g. "FBS01"
-  name: String,                                          // Test name
-  what: String,                                          // What is this test?
-  why: String,                                           // Why is it done?
-  preparation: [String],                                 // Steps before the test
-  during: [String],                                      // What happens during the test
-  after: [String],                                       // Instructions after the test
-  checklist: [                                           // Default checklist items
-    {
-      key: String,                                      
-      label: String,                                     
-      isMandatory: Boolean
-    }
-  ],
-  mediaUrl :String
-}, { timestamps: true });
+const ChecklistItem = new Schema(
+  {
+    key: String,
+    label: String,
+    isMandatory: Boolean,
+  },
+  { _id: false }
+);
 
-export default model("Test", TestSchema);
+const Localized = new Schema(
+  {
+    name: String,
+    what: String,
+    why: String,
+    preparation: [String],
+    during: [String],
+    after: [String],
+    checklist: [ChecklistItem],
+    mediaUrl: String
+  },
+  { _id: false }
+);
+
+const TestSchema = new Schema(
+  {
+    testId: { type: String, unique: true, required: true },
+    name: String,
+    category: { type: String, required: true },
+    what: String,
+    why: String,
+    preparation: [String],
+    during: [String],
+    after: [String],
+    checklist: [ChecklistItem],
+    mediaUrl: String,
+
+    // NEW: optional translations
+    translations: {
+      si: Localized, // Sinhala
+      // en: Localized, // (optional) you can keep English as base fields
+      // ta: Localized, // (future: Tamil)
+    }
+  },
+  { timestamps: true }
+);
+
+module.exports = model("Test", TestSchema);

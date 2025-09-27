@@ -347,14 +347,59 @@ export default function EventRegisterScreen() {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
         <View style={[styles.center, { padding: 24 }]}>
-          <Ionicons name="lock-closed" size={28} color={C.primary} style={{ marginBottom: 12 }} />
-          <Text style={{ fontSize: 16, textAlign: "center", color: C.text }}>
+          <Ionicons
+            name="lock-closed"
+            size={48}
+            color={C.primary}
+            style={{ marginBottom: 16 }}
+          />
+          <Text
+            style={{
+              fontSize: 18,
+              textAlign: "center",
+              color: C.text,
+              marginBottom: 24,
+              fontWeight: "600",
+            }}
+          >
             {t.notLoggedIn}
           </Text>
+
+          {/* Back to Free Events button */}
+          <Pressable
+            onPress={() =>
+              navigation.navigate("FreeEventsTab", { screen: "FreeEvents" })
+            }
+            style={{ width: "80%", borderRadius: 12, overflow: "hidden" }}
+          >
+            <LinearGradient
+              colors={[C.g1, C.g3]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                paddingVertical: 14,
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 12,
+              }}
+            >
+              <Text
+                style={{
+                  color: "#fff",
+                  fontSize: 16,
+                  fontWeight: "800",
+                  letterSpacing: 0.3,
+                }}
+              >
+                ← Back to Free Events
+              </Text>
+            </LinearGradient>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
   }
+
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }} edges={["top", "left", "right"]}>

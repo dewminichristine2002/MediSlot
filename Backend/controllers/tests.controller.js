@@ -7,7 +7,6 @@ exports.listTests = async (req, res) => {
     const filter = {};
     if (category) filter.category = category;
     if (q) filter.$text = { $search: q };
-
     const tests = await DiagnosticTest.find(filter).limit(200);
     res.json(tests);
   } catch (e) {
