@@ -52,7 +52,7 @@ app.use("/api/center-services", require("./routes/centerService.routes"));
 app.use('/api/events', require('./routes/freeEventsRoutes/eventRoutes'));
 app.use('/api/event-registrations', require('./routes/freeEventsRoutes/eventRegistrationRoutes'));
 app.use('/api/lab-tests', require('./routes/freeEventsRoutes/labTestResultRoutes'));
-app.use("/api/tests", require("./routes/LabTests/labTestRoutes"));
+app.use("/api/labtests", require("./routes/LabTests/labTestRoutes"));
 app.use('/api/eventLabNotifications', require('./routes/freeEventsRoutes/eventLabNotificationRoutes'));
 
 // --- 404 for unknown API routes ---
