@@ -1,7 +1,9 @@
+// src/screens/HomeScreen.js
 import React, { useLayoutEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, Button } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import PrimaryButton from '../components/PrimaryButton';
 
 export default function HomeScreen({ navigation }) {
   const { user, signOut } = useAuth();
@@ -50,13 +52,20 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.container}>
       <Text style={styles.title}>Home</Text>
 
-      {/* Show Login button only when NOT authenticated */}
       {!user ? (
-        <Button title="Go to Login" onPress={goLogin} />
+        <PrimaryButton title="Go to Login" onPress={goLogin} />
       ) : (
-        <Text style={styles.welcome}>Welcome back 👋</Text>
-      )}
+        <>
+          <Text style={styles.welcome}>Welcome back 👋</Text>
 
+          {/* ✅ New Booking button (replaces the old “My bookings”) */}
+          <PrimaryButton
+            title="New Booking"
+            onPress={() => navigation.navigate('NewBooking')}
+            style={{ marginTop: 12 }}
+          />
+        </>
+      )}
     </View>
   );
 }
@@ -64,22 +73,5 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
   title: { fontSize: 28, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
-  welcome: { textAlign: 'center', marginBottom: 8 },
-  menuSection: { marginTop: 16 },
-  menuTitle: { fontSize: 18, fontWeight: '700', marginBottom: 10 },
-  menuGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  menuItem: {
-    width: '48%',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 14,
-    paddingVertical: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuItemText: { marginTop: 8, fontWeight: '600' },
+  welcome: { textAlign: 'center', marginBottom: 12 },
 });

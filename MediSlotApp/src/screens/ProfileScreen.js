@@ -5,8 +5,9 @@ import { useAuth } from '../context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
 import { getApiBaseUrl } from '../api/config';
+import PrimaryButton from '../components/PrimaryButton';
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const { user } = useAuth();
 
   return (
@@ -18,14 +19,21 @@ export default function ProfileScreen() {
       <Text style={{ marginBottom: 6 }}>Role: {user?.user_category}</Text>
       <Text style={{ marginBottom: 20 }}>Address: {user?.address}</Text>
 
-      {/* Event registrations + QR codes */}
+      {/* ✅ Open Booking History from Profile */}
+      <PrimaryButton
+        title="Booking History"
+        onPress={() => navigation.navigate('BookingHistory')}
+        style={{ marginBottom: 20 }}
+      />
+
+      {/* Event registrations + QR codes (unchanged) */}
       <MyEventRegs />
     </View>
   );
 }
 
 function MyEventRegs() {
-  const { user } = useAuth(); // get logged-in user
+  const { user } = useAuth();
   const patientId = user?._id;
 
   const [loading, setLoading] = useState(true);
@@ -43,25 +51,29 @@ function MyEventRegs() {
         const t = await AsyncStorage.getItem('token');
 
         if (t) {
-          // Preferred: dedicated "mine" endpoint
           let res = await fetch(
-            `${getApiBaseUrl()}/api/event-registrations/mine?patientId=${encodeURIComponent(patientId)}`,
+            `${getApiBaseUrl()}/api/event-registrations/mine?patientId=${encodeURIComponent(
+              patientId
+            )}`,
             { headers: { Authorization: `Bearer ${t}` } }
           );
 
-          // Fallback: generic endpoint with query param if /mine isn't implemented
           if (res.status === 404) {
             res = await fetch(
-              `${getApiBaseUrl()}/api/event-registrations?patientId=${encodeURIComponent(patientId)}`,
+              `${getApiBaseUrl()}/api/event-registrations?patientId=${encodeURIComponent(
+                patientId
+              )}`,
               { headers: { Authorization: `Bearer ${t}` } }
             );
           }
 
           if (res.ok) {
             const data = await res.json();
-            const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-
-            // Safety client-side filter
+            const items = Array.isArray(data?.items)
+              ? data.items
+              : Array.isArray(data)
+              ? data
+              : [];
             const mine = items.filter((r) => {
               const pid = r?.patient?._id || r?.patient_id || r?.user?._id;
               return pid === patientId;
@@ -74,7 +86,6 @@ function MyEventRegs() {
           }
         }
 
-        // Offline / API error / no token ⇒ use cached, filtered
         const localStr = await AsyncStorage.getItem('my_event_regs');
         const local = localStr ? JSON.parse(localStr) : [];
         const mineLocal = local.filter((r) => {

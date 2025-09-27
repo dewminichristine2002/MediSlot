@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { View, Text, Alert, Pressable } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CommonActions } from '@react-navigation/native';
@@ -29,6 +30,11 @@ export default function LoginScreen({ navigation }) {
     try {
       setLoading(true);
       const { data } = await loginApi(values.email, values.password);
+
+      // ⬇️ add these two lines
+      await AsyncStorage.setItem('token', data.token);                
+      // lets axios add Authorization
+      if (data?.user?._id) await AsyncStorage.setItem('userId', String(data.user._id));
 
       // update auth context
       await signIn({ token: data.token, user: data.user });
