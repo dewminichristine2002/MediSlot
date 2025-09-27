@@ -15,6 +15,8 @@ import ProfileScreen from '../screens/ProfileScreen';
 import FreeEventsScreen from '../screens/FreeEventsScreen';
 import HealthCentersScreen from '../screens/HealthCentersScreen';
 import EventRegisterScreen from "../screens/EventRegisterScreen";
+import HealthCentersMapScreen from '../screens/HealthCentersMapScreen';
+import CenterDetailsScreen from '../screens/CenterDetailsScreen';
 
 import NotificationsScreen from '../screens/NotificationsScreen';
 
