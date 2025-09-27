@@ -124,7 +124,7 @@ function MainTabs() {
 function AdminStack() {
   return (
     <Stack.Navigator screenOptions={{ headerTitleAlign: 'center', }}>
-      <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'MediSlot' }} />
+      <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'MediSlot',headerShown: false }} />
       <Stack.Screen name="AdminScan" component={AdminScanScreen} options={{ title: 'Admin – Scan QR',headerShown: false}} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Admin Profile',headerShown: false }} />
       <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Login',headerShown: false }} />
