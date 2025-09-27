@@ -1,9 +1,8 @@
-// controllers/eventLabnNotificationController.js
 const mongoose = require('mongoose');
-const Notification = require('../models/Notification');
-const LabTestResult = require('../models/LabTestResult');
-const Event = require('../models/Event');
-const User = require('../models/User');
+const Notification = require('../../models/Notification');
+const LabTestResult = require('../../models/LabTestResult');
+const Event = require('../../models/Event');
+const User = require('../../models/User');
 
 // ----- LAB TEST NOTIFICATIONS (specific user only) -----
 
@@ -43,7 +42,7 @@ async function getAllUserIds(filterByRole /* e.g., 'patient' | undefined */) {
   return users.map(u => u._id);
 }
 
-// New event -> notify everyone
+// New event -> notify everyone (or role)
 exports.notifyEventPublished = async ({ event_id, role /* optional: 'patient' */ } = {}) => {
   if (!mongoose.isValidObjectId(event_id)) throw new Error('Invalid event_id');
   const ev = await Event.findById(event_id).lean();
@@ -52,7 +51,6 @@ exports.notifyEventPublished = async ({ event_id, role /* optional: 'patient' */
   const dateStr = ev.date ? new Date(ev.date).toDateString() : '';
   const message = `New event published: ${ev.name} on ${dateStr} at ${ev.time}, ${ev.location}.`;
 
-  // 🔔 broadcast to all (or all patients if role === 'patient')
   const userIds = await getAllUserIds(role);
   if (!userIds.length) return [];
 
@@ -60,7 +58,7 @@ exports.notifyEventPublished = async ({ event_id, role /* optional: 'patient' */
   return Notification.insertMany(payload, { ordered: false });
 };
 
-// Event updated -> notify everyone
+// Event updated -> notify everyone (or role)
 exports.notifyEventUpdated = async ({ event_id, role /* optional */ } = {}) => {
   if (!mongoose.isValidObjectId(event_id)) throw new Error('Invalid event_id');
   const ev = await Event.findById(event_id).lean();
@@ -75,28 +73,6 @@ exports.notifyEventUpdated = async ({ event_id, role /* optional */ } = {}) => {
   return Notification.insertMany(payload, { ordered: false });
 };
 
-// Route handlers
-exports.createEventPublished = async (req, res) => {
-  try {
-    // Body: { event_id, role? }  // role optional; set 'patient' if you only want patients
-    const docs = await exports.notifyEventPublished(req.body);
-    return res.status(201).json(docs);
-  } catch (err) {
-    return res.status(400).json({ message: 'Failed to send new-event notification', error: err.message });
-  }
-};
-
-exports.createEventUpdated = async (req, res) => {
-  try {
-    // Body: { event_id, role? }
-    const docs = await exports.notifyEventUpdated(req.body);
-    return res.status(201).json(docs);
-  } catch (err) {
-    return res.status(400).json({ message: 'Failed to send event-updated notification', error: err.message });
-  }
-};
-
-
 // ----- Generic list -----
 exports.list = async (req, res) => {
   try {
@@ -106,5 +82,24 @@ exports.list = async (req, res) => {
     return res.json(items);
   } catch (err) {
     return res.status(500).json({ message: 'Failed to fetch notifications', error: err.message });
+  }
+};
+
+// ----- Route wrappers -----
+exports.createEventPublished = async (req, res) => {
+  try {
+    const docs = await exports.notifyEventPublished(req.body);
+    return res.status(201).json(docs);
+  } catch (err) {
+    return res.status(400).json({ message: 'Failed to send new-event notification', error: err.message });
+  }
+};
+
+exports.createEventUpdated = async (req, res) => {
+  try {
+    const docs = await exports.notifyEventUpdated(req.body);
+    return res.status(201).json(docs);
+  } catch (err) {
+    return res.status(400).json({ message: 'Failed to send event-updated notification', error: err.message });
   }
 };
