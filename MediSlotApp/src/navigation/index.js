@@ -17,7 +17,6 @@ import HealthCentersScreen from '../screens/HealthCentersScreen';
 import EventRegisterScreen from "../screens/EventRegisterScreen";
 import HealthCentersMapScreen from '../screens/HealthCentersMapScreen';
 import CenterDetailsScreen from '../screens/CenterDetailsScreen';
-
 import NotificationsScreen from '../screens/NotificationsScreen';
 
 // Screens (admin side)
@@ -30,32 +29,30 @@ import TestDetailsScreen from '../screens/Guidelines/TestDetailsScreen';
 import HealthAwarenessListScreen from "../screens/HealthAwarenessListScreen";
 import HealthAwarenessDetailScreen from "../screens/HealthAwarenessDetailScreen";
 
-
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-/** ---------- USER STACKS (Shown only to non-admins via tabs) headerShown: false---------- */
+/** ---------- USER STACKS ---------- */
 function HomeStack() {
   return (
-    <Stack.Navigator initialRouteName="Home" screenOptions={{ headerTitleAlign: 'center', }}>
-      <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'MediSlot' , headerShown: false}} />
-      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications', headerShown: false }} />
-      <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Login',headerShown: false }} />
-      <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Register',headerShown: false }} />
-      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' , headerShown: false}} />
-      <Stack.Screen name="HealthAwarenessList" component={HealthAwarenessListScreen} options={{ title: 'Health Awareness List',headerShown: false }}/>
-      <Stack.Screen name="HealthAwarenessDetail" component={HealthAwarenessDetailScreen} options={{ title: 'Health Awareness Details',headerShown: false }} />
-      {/* Keep AdminScan here only if you want to deep-link it; otherwise remove */}
-      <Stack.Screen name="AdminScan" component={AdminScanScreen} options={{ title: 'Admin – Scan QR',headerShown: false }} />
+    <Stack.Navigator initialRouteName="Home" screenOptions={{ headerTitleAlign: 'center' }}>
+      <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'MediSlot', headerShown: false }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="HealthAwarenessList" component={HealthAwarenessListScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="HealthAwarenessDetail" component={HealthAwarenessDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="AdminScan" component={AdminScanScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
 
 function FreeEventsStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerTitleAlign: 'center', headerShown: false}}>
-      <Stack.Screen name="FreeEvents" component={FreeEventsScreen} options={{ title: 'Free Events' }} />
-      <Stack.Screen name="EventRegister" component={EventRegisterScreen} options={{ title: 'Event Registration' }} />
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="FreeEvents" component={FreeEventsScreen} />
+      <Stack.Screen name="EventRegister" component={EventRegisterScreen} />
     </Stack.Navigator>
   );
 }
@@ -64,38 +61,25 @@ function HealthCentersStack() {
   return (
     <Stack.Navigator screenOptions={{ headerTitleAlign: 'center' }}>
       <Stack.Screen name="HealthCenters" component={HealthCentersScreen} options={{ title: 'Health Centers' }} />
+      {/* ✅ Added CenterDetails screen here */}
+      <Stack.Screen name="CenterDetails" component={CenterDetailsScreen} options={{ headerShown: false }} />
+      {/* (Optional) if you also need the map view inside this stack */}
+      <Stack.Screen name="HealthCentersMap" component={HealthCentersMapScreen} options={{ title: 'Centers Map' }} />
     </Stack.Navigator>
   );
 }
-
 
 function GuidelinesStack() {
   return (
-    <Stack.Navigator
-      initialRouteName="TestCategories"
-      screenOptions={{ headerTitleAlign: 'center', headerShown: false}}
-    >
-      <Stack.Screen
-        name="TestCategories"
-        component={TestCategoriesScreen}
-        options={{ title: 'Lab Test Categories' }}
-      />
-      <Stack.Screen
-        name="TestList"
-        component={TestListScreen}
-        options={({ route }) => ({ title: route.params?.category || 'Tests' })}
-      />
-      <Stack.Screen
-        name="TestDetails"
-        component={TestDetailsScreen}
-        options={({ route }) => ({ title: route.params?.name || 'Test Details' })}
-      />
+    <Stack.Navigator initialRouteName="TestCategories" screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="TestCategories" component={TestCategoriesScreen} />
+      <Stack.Screen name="TestList" component={TestListScreen} />
+      <Stack.Screen name="TestDetails" component={TestDetailsScreen} />
     </Stack.Navigator>
   );
 }
 
-
-/** ---------- TABS (Non-admin only) ---------- */
+/** ---------- TABS ---------- */
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -115,23 +99,22 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="HomeTab" component={HomeStack} options={{ title: 'Home' }} />
-      <Tab.Screen name="FreeEventsTab" component={FreeEventsStack} options={{ title: 'Free Events',headerShown: false }} />
-      <Tab.Screen name="HealthCentersTab" component={HealthCentersStack} options={{ title: 'Health Centers',headerShown: false }} />
-      <Tab.Screen name="GuidelinesTab" component={GuidelinesStack} options={{ title: 'Guidelines',headerShown: false }} />
+      <Tab.Screen name="FreeEventsTab" component={FreeEventsStack} options={{ title: 'Free Events' }} />
+      <Tab.Screen name="HealthCentersTab" component={HealthCentersStack} options={{ title: 'Health Centers' }} />
+      <Tab.Screen name="GuidelinesTab" component={GuidelinesStack} options={{ title: 'Guidelines' }} />
     </Tab.Navigator>
   );
 }
 
-/** ---------- ADMIN-ONLY STACK (No tabs, no Notifications route) ---------- */
+/** ---------- ADMIN STACK ---------- */
 function AdminStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerTitleAlign: 'center', }}>
+    <Stack.Navigator screenOptions={{ headerTitleAlign: 'center' }}>
       <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'MediSlot' }} />
-      <Stack.Screen name="AdminScan" component={AdminScanScreen} options={{ title: 'Admin – Scan QR',headerShown: false}} />
-      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Admin Profile',headerShown: false }} />
-      <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Login',headerShown: false }} />
-      <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Register',headerShown: false }} />
-      {/* Intentionally NOT adding Notifications here for admins */}
+      <Stack.Screen name="AdminScan" component={AdminScanScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
@@ -139,7 +122,7 @@ function AdminStack() {
 /** ---------- ROOT ---------- */
 export default function RootNavigator() {
   const { user, loading } = useAuth();
-  if (loading) return null; // or splash
+  if (loading) return null; // splash
 
   const role = (user?.user_category || '').toLowerCase();
   const isAdmin = role === 'admin' || role === 'superadmin' || role === 'manager';
@@ -149,5 +132,4 @@ export default function RootNavigator() {
       {isAdmin ? <AdminStack /> : <MainTabs />}
     </NavigationContainer>
   );
-  
 }
