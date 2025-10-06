@@ -97,7 +97,7 @@ export default function HomePage() {
               <FaHospital /> Centers
             </Link>
             <Link to="/labtests" className="card link-card lab">
-              <FaFlask /> Lab Tests
+              <FaFlask /> Lab Tests Reports For Free Events
             </Link>
           </div>
 
