@@ -15,13 +15,21 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
     try {
-      await login(email, password);
-      navigate("/home");
+      const loggedInUser = await login(email, password);
+
+      // 🧭 Redirect based on user role
+      if (loggedInUser.user_category === "admin") {
+        navigate("/home");
+      } else if (loggedInUser.user_category === "healthCenterAdmin") {
+        navigate("/healthcenter/home");
+      }
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
     }
   };
+
 
   return (
     <div className="auth-page">
