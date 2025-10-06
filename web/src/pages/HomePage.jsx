@@ -90,15 +90,15 @@ export default function HomePage() {
             <Link to="/guidelines" className="card link-card guides">
               <FaBookOpen /> Guidelines
             </Link>
-            <Link to="/booking" className="card link-card booking">
+            {/*<Link to="/booking" className="card link-card booking">
               <FaCalendarAlt /> Bookings
-            </Link>
+            </Link>*/}
             <Link to="/centers" className="card link-card centers">
               <FaHospital /> Centers
             </Link>
-            <Link to="/labtests" className="card link-card lab">
+            {/*<Link to="/labtests" className="card link-card lab">
               <FaFlask /> Lab Tests Reports For Free Events
-            </Link>
+            </Link>*/}
           </div>
 
           {/* 📅 Calendar */}
