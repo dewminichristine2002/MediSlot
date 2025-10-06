@@ -13,10 +13,9 @@ export default function Footer() {
 
       <div className="footer-center">
         <a href="/home">Home</a>
+        <a href="/free-events">Free Events</a>
         <a href="/guidelines">Guidelines</a>
-        <a href="/booking">Booking</a>
         <a href="/centers">Centers</a>
-        <a href="/labtests">Lab Tests</a>
       </div>
 
       <div className="footer-right">
