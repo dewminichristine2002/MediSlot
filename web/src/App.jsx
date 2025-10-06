@@ -12,6 +12,8 @@ import BookingPage from "./pages/BookingPage";
 import CentersPage from "./pages/CentersPage";
 import LabTestsPage from "./pages/LabTestsPage";
 import RegisterPage from "./pages/RegisterPage";
+import HealthCenterHome from "./pages/HealthCenterHome";
+
 
 function App() {
   return (
@@ -68,6 +70,7 @@ function App() {
             }
           />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/healthcenter/home" element={<HealthCenterHome />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

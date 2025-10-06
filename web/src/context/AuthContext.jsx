@@ -1,48 +1,29 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+// context/AuthContext.jsx
+import { createContext, useContext, useState } from "react";
 import { api } from "../api";
 
-const AuthCtx = createContext(null);
+const AuthContext = createContext();
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const raw = localStorage.getItem("user");
-    return raw ? JSON.parse(raw) : null;
-  });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return setLoading(false);
-
-    api
-      .get("/users/me")
-      .then((res) => {
-        setUser(res.data);
-        localStorage.setItem("user", JSON.stringify(res.data));
-      })
-      .catch(() => {
-        localStorage.clear();
-      })
-      .finally(() => setLoading(false));
-  }, []);
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
 
   const login = async (email, password) => {
     const res = await api.post("/users/auth/login", { email, password });
-    localStorage.setItem("token", res.data.token);
-    localStorage.setItem("user", JSON.stringify(res.data.user));
     setUser(res.data.user);
+    localStorage.setItem("token", res.data.token);
+    return res.data.user; // ✅ So we can redirect based on role
   };
 
   const logout = () => {
-    localStorage.clear();
     setUser(null);
+    localStorage.removeItem("token");
   };
 
   return (
-    <AuthCtx.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout }}>
       {children}
-    </AuthCtx.Provider>
+    </AuthContext.Provider>
   );
-}
+};
 
-export const useAuth = () => useContext(AuthCtx);
+export const useAuth = () => useContext(AuthContext);

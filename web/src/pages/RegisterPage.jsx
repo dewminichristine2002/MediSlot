@@ -116,6 +116,7 @@ export default function RegisterPage() {
           onChange={onChange}
         >
           <option value="admin">Admin</option>
+          <option value="healthCenterAdmin">Health Center</option>
           <option value="patient">Patient</option>
         </select>
 
