@@ -294,6 +294,27 @@ if (user && isAdmin) {
         <VitalsBanner />
       </Animated.View>
 
+            {/* Small Intro + Booking Button */}
+      <Animated.View style={{ opacity: fade, transform: [{ translateY: slideY }] }}>
+        <View style={s.introWrap}>
+          <Text style={s.introText}>
+            Your health companion — book diagnostic tests at nearby centers with ease.
+          </Text>
+        <TouchableOpacity style={s.bookingBtn} onPress={() => navigation.navigate("Booking")}>
+          <LinearGradient
+            colors={[C.g1, C.g2]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ paddingVertical: 14, borderRadius: 10, alignItems: "center" }}
+          >
+            <Text style={s.bookingBtnText}>Book a Test</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        </View>
+      </Animated.View>
+
+
       {/* Section header for slider */}
       <Animated.View style={[s.sectionHeader, { opacity: fade, transform: [{ translateY: slideY }] }]}>
         <Text style={s.sectionTitle}>Health Awareness</Text>
@@ -531,6 +552,7 @@ mediSlotTitle: { fontSize: 28, fontWeight: "900", color: "#FFFFFF" },
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
+    
   },
   bannerLeft: { width: 64, alignItems: "center", justifyContent: "center" },
   bannerRight: { width: 64, alignItems: "center", justifyContent: "center" },
@@ -609,6 +631,40 @@ notifBadgeText: {
   color: "#fff",
   fontSize: 10,
   fontWeight: "700",
+},
+introWrap: {
+  paddingHorizontal: 18,
+  paddingVertical: 16,
+  marginTop: 14,
+  marginBottom: 12,
+  backgroundColor: "#ffffff",
+  borderRadius: 14,
+  elevation: 3, // Android shadow
+  shadowColor: "#000", // iOS shadow
+  shadowOpacity: 0.08,
+  shadowRadius: 6,
+  shadowOffset: { width: 0, height: 3 },
+},
+introText: {
+  fontSize: 15,
+  color: "#1e293b",
+  marginBottom: 14,
+  textAlign: "center",
+  fontWeight: "500",
+  lineHeight: 20,
+},
+
+bookingBtn: {
+  alignSelf: "center",
+  width: "75%",
+  borderRadius: 10,
+  overflow: "hidden",
+},
+bookingBtnText: {
+  color: "#fff",
+  fontSize: 16,
+  fontWeight: "700",
+  textAlign: "center",
 },
 
 });
