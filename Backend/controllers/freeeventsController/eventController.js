@@ -49,33 +49,38 @@ exports.createEvent = async (req, res) => {
 };
 
 // GET /api/events
-// Supports: pagination, text search, date range, sorting
+// Shows ALL events (no pagination)
 exports.getEvents = async (req, res) => {
   try {
-    const page = Math.max(parseInt(req.query.page || '1', 10), 1);
-    const limit = Math.min(Math.max(parseInt(req.query.limit || '10', 10), 1), 100);
-    const skip = (page - 1) * limit;
-
     const filters = buildFilters(req.query);
     const sort = buildSort(req.query);
 
-    const [items, total] = await Promise.all([
-      Event.find(filters).sort(sort).skip(skip).limit(limit),
-      Event.countDocuments(filters),
-    ]);
+    // Fetch all events (no skip, no limit)
+    const events = await Event.find(filters).sort(sort).lean();
+    const total = events.length;
+
+    // Add derived fields for UI
+    const items = events.map((event) => ({
+      ...event,
+      slots_remaining: Math.max(
+        0,
+        (event.slots_total || 0) - (event.slots_filled || 0)
+      ),
+      attended_count: event.attended_count || 0,
+    }));
 
     return res.json({
-      page,
-      limit,
       total,
-      pages: Math.ceil(total / limit),
       items,
     });
   } catch (err) {
-    console.error('getEvents error:', err);
-    return res.status(500).json({ message: 'Failed to fetch events', error: err.message });
+    console.error("getEvents error:", err);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch events", error: err.message });
   }
 };
+
 
 // GET /api/events/:id
 exports.getEventById = async (req, res) => {
