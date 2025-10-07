@@ -54,6 +54,8 @@ app.use('/api/event-registrations', require('./routes/freeEventsRoutes/eventRegi
 app.use('/api/lab-tests', require('./routes/freeEventsRoutes/labTestResultRoutes'));
 app.use("/api/labtests", require("./routes/LabTests/labTestRoutes"));
 app.use('/api/eventLabNotifications', require('./routes/freeEventsRoutes/eventLabNotificationRoutes'));
+app.use('/api/healthcenters', require('./routes/centers.routes'));
+
 
 // --- 404 for unknown API routes ---
 app.use((req, res, next) => {
