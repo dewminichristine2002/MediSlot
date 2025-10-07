@@ -7,7 +7,7 @@ import { api } from "../api";
 export default function FreeEventsPage() {
   const [tab, setTab] = useState("patients");
   const [events, setEvents] = useState([]);
-  const [filteredEvents, setFilteredEvents] = useState([]); // ✅ Added
+  const [filteredEvents, setFilteredEvents] = useState([]);
   const [healthCenters, setHealthCenters] = useState([]);
   const [form, setForm] = useState({
     name: "",
@@ -42,18 +42,16 @@ export default function FreeEventsPage() {
 
       const past = allEvents
         .filter((e) => new Date(e.date) < now)
-        .sort((a, b) => new Date(b.date) - new Date(a.date)); // newest past first
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
 
-      // Combine: upcoming first, past below
       const combined = [...upcoming, ...past];
       setEvents(combined);
-      setFilteredEvents(combined); // ✅ initial filtered list
+      setFilteredEvents(combined);
     } catch (e) {
       console.error("Failed to load events:", e);
     }
   };
 
-  // ✅ Load Health Centers
   const loadHealthCenters = async () => {
     try {
       const res = await api.get("/healthcenters/names");
@@ -76,15 +74,12 @@ export default function FreeEventsPage() {
       const term = search.toLowerCase();
       filtered = filtered.filter((e) => e.name.toLowerCase().includes(term));
     }
-
     if (selectedCenter) {
       filtered = filtered.filter((e) => e.location === selectedCenter);
     }
-
     if (fromDate) {
       filtered = filtered.filter((e) => new Date(e.date) >= new Date(fromDate));
     }
-
     if (toDate) {
       filtered = filtered.filter((e) => new Date(e.date) <= new Date(toDate));
     }
@@ -92,13 +87,11 @@ export default function FreeEventsPage() {
     setFilteredEvents(filtered);
   }, [search, selectedCenter, fromDate, toDate, events]);
 
-  // ✅ Handle Input Change
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ✅ Submit Create / Update
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErr("");
@@ -128,7 +121,6 @@ export default function FreeEventsPage() {
     }
   };
 
-  // ✅ Edit Event
   const handleEdit = (event) => {
     setForm({
       name: event.name,
@@ -142,7 +134,6 @@ export default function FreeEventsPage() {
     setTab("register");
   };
 
-  // ✅ Delete Event
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this event?")) return;
     try {
@@ -155,7 +146,6 @@ export default function FreeEventsPage() {
     }
   };
 
-  // ✅ Helper: build correct file URL (strip /api)
   const getFileUrl = (path) => {
     const backendBase = api.defaults.baseURL?.replace(/\/api\/?$/, "") || "";
     return `${backendBase}${path}`;
@@ -171,7 +161,6 @@ export default function FreeEventsPage() {
             <h2>Free Events</h2>
           </div>
 
-          {/* Tabs */}
           <div className="tabs">
             <button
               className={`tab-btn ${tab === "list" ? "active" : ""}`}
@@ -196,7 +185,6 @@ export default function FreeEventsPage() {
           {success && <div className="alert success">{success}</div>}
           {err && <div className="alert error">{err}</div>}
 
-          {/* ---------- REGISTER FORM ---------- */}
           {tab === "register" ? (
             <div className="card stylish-form">
               <h3>{editId ? "Update Event" : "Create a New Event"}</h3>
@@ -282,7 +270,6 @@ export default function FreeEventsPage() {
             <div className="card event-table">
               <h3>All Events</h3>
 
-              {/* ✅ Added Filters Here */}
               <div
                 style={{
                   display: "flex",
@@ -369,7 +356,7 @@ export default function FreeEventsPage() {
                   <table className="styled-table">
                     <thead>
                       <tr>
-                        <th>Title</th>
+                        <th>Free Event Name</th>
                         <th>Date</th>
                         <th>Time</th>
                         <th>Location</th>
@@ -430,11 +417,12 @@ export default function FreeEventsPage() {
 function EventCard({ event, getFileUrl }) {
   const [showModal, setShowModal] = useState(false);
   const [patients, setPatients] = useState([]);
+  const [filteredPatients, setFilteredPatients] = useState([]);
+  const [patientSearch, setPatientSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploadingId, setUploadingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
-  // ✅ Load Patients & check existing reports
   const loadPatients = async () => {
     setLoading(true);
     try {
@@ -468,12 +456,28 @@ function EventCard({ event, getFileUrl }) {
       );
 
       setPatients(enriched);
+      setFilteredPatients(enriched);
     } catch (e) {
       console.error("Failed to load patients:", e);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (patientSearch.trim()) {
+      const term = patientSearch.toLowerCase();
+      setFilteredPatients(
+        patients.filter(
+          (p) =>
+            p.name.toLowerCase().includes(term) ||
+            p.nic.toLowerCase().includes(term)
+        )
+      );
+    } else {
+      setFilteredPatients(patients);
+    }
+  }, [patientSearch, patients]);
 
   const openModal = async () => {
     await loadPatients();
@@ -482,7 +486,6 @@ function EventCard({ event, getFileUrl }) {
 
   const closeModal = () => setShowModal(false);
 
-  // ✅ Upload PDF + Notification
   const handleUpload = async (patient, file) => {
     if (!file) return alert("Please select a file first.");
     if (patient.reportUploaded)
@@ -526,7 +529,6 @@ function EventCard({ event, getFileUrl }) {
     }
   };
 
-  // ✅ Delete Report
   const handleDeleteReport = async (patient) => {
     if (!window.confirm("Are you sure you want to delete this report?")) return;
 
@@ -585,11 +587,29 @@ function EventCard({ event, getFileUrl }) {
                 ✖
               </button>
             </div>
+
+            {/* ✅ Patient Filter Input + Clear */}
+            <div className="patient-search-container">
+              <input
+                type="text"
+                placeholder="Filter by NIC or Name..."
+                value={patientSearch}
+                onChange={(e) => setPatientSearch(e.target.value)}
+                className="patient-search-input"
+              />
+              <button
+                onClick={() => setPatientSearch("")}
+                className="patient-search-clear"
+              >
+                Clear
+              </button>
+            </div>
+
             <div className="modal-body">
               {loading ? (
                 <p className="muted">Loading patients...</p>
-              ) : patients.length === 0 ? (
-                <p className="muted">No patients registered yet.</p>
+              ) : filteredPatients.length === 0 ? (
+                <p className="muted">No patients found.</p>
               ) : (
                 <table className="styled-table clearer-table">
                   <thead>
@@ -604,7 +624,7 @@ function EventCard({ event, getFileUrl }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {patients.map((p) => (
+                    {filteredPatients.map((p) => (
                       <tr key={p._id}>
                         <td>{p.name}</td>
                         <td>{p.nic}</td>
