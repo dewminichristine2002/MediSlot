@@ -20,6 +20,7 @@ export default function FreeEventsPage() {
   const [err, setErr] = useState("");
   const [success, setSuccess] = useState("");
 
+  // ✅ Load Events
   const loadEvents = async () => {
     try {
       const res = await api.get("/events");
@@ -29,6 +30,7 @@ export default function FreeEventsPage() {
     }
   };
 
+  // ✅ Load Health Centers
   const loadHealthCenters = async () => {
     try {
       const res = await api.get("/healthcenters/names");
@@ -43,11 +45,13 @@ export default function FreeEventsPage() {
     loadHealthCenters();
   }, []);
 
+  // ✅ Handle Input Change
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  // ✅ Submit Create / Update
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErr("");
@@ -77,6 +81,7 @@ export default function FreeEventsPage() {
     }
   };
 
+  // ✅ Edit Event
   const handleEdit = (event) => {
     setForm({
       name: event.name,
@@ -90,6 +95,7 @@ export default function FreeEventsPage() {
     setTab("register");
   };
 
+  // ✅ Delete Event
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this event?")) return;
     try {
@@ -100,6 +106,12 @@ export default function FreeEventsPage() {
     } catch {
       setErr("Failed to delete event");
     }
+  };
+
+  // ✅ Helper: build correct file URL (strip /api)
+  const getFileUrl = (path) => {
+    const backendBase = api.defaults.baseURL?.replace(/\/api\/?$/, "") || "";
+    return `${backendBase}${path}`;
   };
 
   return (
@@ -137,6 +149,7 @@ export default function FreeEventsPage() {
           {success && <div className="alert success">{success}</div>}
           {err && <div className="alert error">{err}</div>}
 
+          {/* ---------- REGISTER FORM ---------- */}
           {tab === "register" ? (
             <div className="card stylish-form">
               <h3>{editId ? "Update Event" : "Create a New Event"}</h3>
@@ -259,13 +272,12 @@ export default function FreeEventsPage() {
                     </tbody>
                   </table>
                 </div>
-
               )}
             </div>
           ) : (
             <div className="event-grid">
               {events.map((ev) => (
-                <EventCard key={ev._id} event={ev} />
+                <EventCard key={ev._id} event={ev} getFileUrl={getFileUrl} />
               ))}
             </div>
           )}
@@ -277,17 +289,41 @@ export default function FreeEventsPage() {
   );
 }
 
-/* 🌟 EVENT CARD WITH UPLOAD FEATURE 🌟 */
-function EventCard({ event }) {
+/* 🌟 EVENT CARD COMPONENT 🌟 */
+function EventCard({ event, getFileUrl }) {
   const [showModal, setShowModal] = useState(false);
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [uploadingId, setUploadingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
+  // ✅ Load Patients & check existing reports
   const loadPatients = async () => {
     setLoading(true);
     try {
       const res = await api.get(`/event-registrations?event_id=${event._id}`);
-      setPatients(res.data || []);
+      const patientsData = res.data || [];
+
+      const enriched = await Promise.all(
+        patientsData.map(async (p) => {
+          try {
+            const check = await api.get(
+              `/lab-tests?user_id=${p.patient_id?._id || p.patient_id}&q=${encodeURIComponent(event.name)}`
+            );
+            const hasReport = check.data?.items?.length > 0;
+            if (hasReport) {
+              const report = check.data.items[0];
+              const filePath = getFileUrl(report.file_path);
+              return { ...p, reportUploaded: true, reportPath: filePath, reportId: report._id };
+            }
+            return { ...p, reportUploaded: false };
+          } catch {
+            return { ...p, reportUploaded: false };
+          }
+        })
+      );
+
+      setPatients(enriched);
     } catch (e) {
       console.error("Failed to load patients:", e);
     } finally {
@@ -302,23 +338,67 @@ function EventCard({ event }) {
 
   const closeModal = () => setShowModal(false);
 
-  // ✅ Upload Lab Report
+  // ✅ Upload PDF + Notification
   const handleUpload = async (patient, file) => {
     if (!file) return alert("Please select a file first.");
+    if (patient.reportUploaded)
+      return alert("This report has already been uploaded.");
+
     const formData = new FormData();
+    formData.append("user_id", patient.patient_id?._id || patient.patient_id);
     formData.append("file", file);
-    formData.append("user_id", patient.user_id || patient._id);
     formData.append("testOrEvent_name", event.name);
 
     try {
-      await api.post("/lab-tests", formData, {
+      setUploadingId(patient._id);
+      const res = await api.post("/lab-tests", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      alert("✅ Report uploaded and patient notified!");
-      await loadPatients(); // reload after upload
+
+      const filePath = getFileUrl(res.data.file_path);
+
+      setPatients((prev) =>
+        prev.map((p) =>
+          p._id === patient._id
+            ? { ...p, reportUploaded: true, reportPath: filePath, reportId: res.data._id }
+            : p
+        )
+      );
+
+      alert("✅ Report uploaded successfully and patient notified!");
     } catch (err) {
-      alert("❌ Failed to upload report");
-      console.error(err);
+      console.error("Upload error:", err);
+      alert(err?.response?.data?.message || "❌ Failed to upload or notify the patient");
+    } finally {
+      setUploadingId(null);
+    }
+  };
+
+  // ✅ Delete Report
+  const handleDeleteReport = async (patient) => {
+    if (!window.confirm("Are you sure you want to delete this report?")) return;
+
+    try {
+      setDeletingId(patient._id);
+      const reportId = patient.reportId;
+      if (!reportId) return alert("No report found.");
+
+      await api.delete(`/lab-tests/${reportId}`);
+
+      setPatients((prev) =>
+        prev.map((p) =>
+          p._id === patient._id
+            ? { ...p, reportUploaded: false, reportPath: null, reportId: null }
+            : p
+        )
+      );
+
+      alert("🗑️ Report deleted successfully!");
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("❌ Failed to delete report");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -337,7 +417,6 @@ function EventCard({ event }) {
             {event.slots_filled ?? 0}/{event.slots_total} filled
           </div>
         </div>
-
         <div className="event-card-footer">
           <button className="btn-view" onClick={openModal}>
             View Patients
@@ -387,15 +466,26 @@ function EventCard({ event }) {
                         </td>
                         <td>
                           {p.status === "attended" ? (
-                            p.reportUploaded ? (
-                              <a
-                                href={p.reportPath}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn-view"
-                              >
-                                View Report
-                              </a>
+                            uploadingId === p._id ? (
+                              <span className="muted">Uploading...</span>
+                            ) : p.reportUploaded ? (
+                              <div className="report-actions">
+                                <a
+                                  href={p.reportPath}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn-view"
+                                >
+                                  View Report
+                                </a>
+                                <button
+                                  className="btn-delete-report"
+                                  disabled={deletingId === p._id}
+                                  onClick={() => handleDeleteReport(p)}
+                                >
+                                  {deletingId === p._id ? "Deleting..." : "Delete"}
+                                </button>
+                              </div>
                             ) : (
                               <label className="btn-upload">
                                 Upload PDF

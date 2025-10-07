@@ -1601,3 +1601,39 @@ main h2 {
   width: 100%;
   border-collapse: collapse;
 }
+.btn-upload {
+  background: #4caf50;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.btn-view {
+  background: #2196f3;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 14px;
+}
+.report-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-delete-report {
+  background: #e53935;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.btn-delete-report:hover {
+  background: #c62828;
+}
