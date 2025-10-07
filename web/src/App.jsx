@@ -9,9 +9,7 @@ import RegisterPage from "./pages/RegisterPage";
 import HomePage from "./pages/HomePage";
 import FreeEventsPage from "./pages/FreeEventsPage";
 import GuidelinesPage from "./pages/GuidelinesPage";
-import BookingPage from "./pages/BookingPage";
 import CentersPage from "./pages/CentersPage";
-import LabTestsPage from "./pages/LabTestsPage";
 
 // 🌿 Health Center Pages
 import HealthCenterHome from "./pages/HealthCenterHome";
@@ -53,26 +51,10 @@ function App() {
             }
           />
           <Route
-            path="/booking"
-            element={
-              <ProtectedRoute>
-                <BookingPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/centers"
             element={
               <ProtectedRoute>
                 <CentersPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/labtests"
-            element={
-              <ProtectedRoute>
-                <LabTestsPage />
               </ProtectedRoute>
             }
           />
