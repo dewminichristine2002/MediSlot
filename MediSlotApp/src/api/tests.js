@@ -1,7 +1,7 @@
 // src/api/tests.js
 import { getApiBaseUrl } from "../api/config";
 
-const BASE = `${getApiBaseUrl()}/api/tests`;
+const BASE = `${getApiBaseUrl()}/api/labtests`;
 
 export async function fetchCategories() {
   const res = await fetch(`${BASE}/categories`);
