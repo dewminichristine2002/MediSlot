@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
-import { api } from "../api"; // Axios instance
+import { api } from "../api";
 
 export default function FreeEventsPage() {
   const [tab, setTab] = useState("list");
@@ -16,6 +16,7 @@ export default function FreeEventsPage() {
     location: "",
     slots_total: "",
   });
+  const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [success, setSuccess] = useState("");
@@ -38,7 +39,7 @@ export default function FreeEventsPage() {
       const res = await api.get("/events");
       setEvents(res.data?.items || res.data || []);
     } catch (e) {
-      setErr(e?.response?.data?.message || "Failed to load free events");
+      setErr(e?.response?.data?.message || "Failed to load events");
     } finally {
       setLoading(false);
     }
@@ -49,49 +50,69 @@ export default function FreeEventsPage() {
     loadHealthCenters();
   }, []);
 
-  // ✅ Handle form input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ✅ Handle form submit
+  // ✅ Create or update event
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErr("");
     setSuccess("");
 
     try {
-      const res = await api.post("/events", form);
-
-      if (res.status === 201) {
-        // Show success AFTER switching to list tab
-        setSuccess("✅ Event created successfully!");
-        setForm({
-          name: "",
-          description: "",
-          date: "",
-          time: "",
-          location: "",
-          slots_total: "",
-        });
-
-        // Reload event list
-        await loadEvents();
-
-        // Switch tab AFTER short delay
-        setTimeout(() => {
-          setTab("list");
-        }, 500);
-
-        // Automatically clear success message after 3 seconds
-        setTimeout(() => setSuccess(""), 3000);
+      if (editId) {
+        await api.patch(`/events/${editId}`, form);
+        setSuccess("✅ Event updated successfully!");
       } else {
-        setErr("Something went wrong while saving the event.");
+        await api.post("/events", form);
+        setSuccess("✅ Event created successfully!");
       }
+
+      setForm({
+        name: "",
+        description: "",
+        date: "",
+        time: "",
+        location: "",
+        slots_total: "",
+      });
+      setEditId(null);
+      await loadEvents();
+      setTab("list");
+      setTimeout(() => setSuccess(""), 3000);
     } catch (error) {
-      console.error("Event creation error:", error);
-      setErr(error?.response?.data?.message || "Failed to create event");
+      console.error("Event save error:", error);
+      setErr(error?.response?.data?.message || "Failed to save event");
+    }
+  };
+
+  // ✅ Edit event
+  const handleEdit = (event) => {
+    setForm({
+      name: event.name || "",
+      description: event.description || "",
+      date: event.date ? event.date.substring(0, 10) : "",
+      time: event.time || "",
+      location: event.location || "",
+      slots_total: event.slots_total || "",
+    });
+    setEditId(event._id);
+    setTab("register");
+  };
+
+  // ✅ Delete event
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this event?")) return;
+    try {
+      await api.delete(`/events/${id}`);
+      setSuccess("🗑️ Event deleted successfully!");
+      await loadEvents();
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      console.error(err);
+      setErr("Failed to delete event");
     }
   };
 
@@ -109,7 +130,10 @@ export default function FreeEventsPage() {
           <div className="tabs">
             <button
               className={`tab-btn ${tab === "list" ? "active" : ""}`}
-              onClick={() => setTab("list")}
+              onClick={() => {
+                setEditId(null);
+                setTab("list");
+              }}
             >
               Event List
             </button>
@@ -117,27 +141,31 @@ export default function FreeEventsPage() {
               className={`tab-btn ${tab === "register" ? "active" : ""}`}
               onClick={() => setTab("register")}
             >
-              Event Registration
+              {editId ? "Update Event" : "Event Registration"}
             </button>
           </div>
 
-          {/* ✅ Success message visible on BOTH tabs */}
+          {/* Alerts */}
           {success && (
-            <div
-              className="alert success"
-              style={{ marginBottom: "10px", fontWeight: 500 }}
-            >
+            <div className="alert success" style={{ marginBottom: "10px" }}>
               {success}
             </div>
           )}
+          {err && (
+            <div className="alert error" style={{ marginBottom: "10px" }}>
+              {err}
+            </div>
+          )}
 
-          {/* ===== Event Registration Form ===== */}
+          {/* ===== Event Form ===== */}
           {tab === "register" ? (
             <div className="card stylish-form">
-              <h3>Create a New Event</h3>
-              <p className="muted">Fill in the details below to add a new event.</p>
-
-              {err && <div className="alert error">{err}</div>}
+              <h3>{editId ? "Update Event" : "Create a New Event"}</h3>
+              <p className="muted">
+                {editId
+                  ? "Modify the event details below and save changes."
+                  : "Fill in the details below to add a new event."}
+              </p>
 
               <form onSubmit={handleSubmit} className="event-form">
                 <div className="form-grid">
@@ -221,48 +249,66 @@ export default function FreeEventsPage() {
                 </div>
 
                 <button type="submit" className="btn-submit">
-                  Register Event
+                  {editId ? "Save Changes" : "Register Event"}
                 </button>
               </form>
             </div>
           ) : (
             // ===== Event List =====
-            <div className="card">
-              <div className="header-row">
-                <h3>Event List</h3>
-                <button className="btn" onClick={loadEvents}>
-                  Reload
-                </button>
-              </div>
+            <div className="card event-table">
+              <h3 style={{ marginBottom: "15px" }}>All Events</h3>
 
               {loading ? (
                 <div className="center">Loading…</div>
-              ) : err ? (
-                <div className="alert error">{err}</div>
               ) : (
-                <table className="table">
+                <table className="styled-table">
                   <thead>
                     <tr>
                       <th>Title</th>
                       <th>Date</th>
+                      <th>Time</th>
                       <th>Location</th>
+                      <th>Slots</th>
+                      <th>Description</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {events.map((e) => (
                       <tr key={e._id}>
-                        <td>{e.name || "-"}</td>
+                        <td>{e.name}</td>
                         <td>
                           {e.date
                             ? new Date(e.date).toLocaleDateString()
                             : "-"}
                         </td>
-                        <td>{e.location || "-"}</td>
+                        <td>{e.time}</td>
+                        <td>{e.location}</td>
+                        <td>
+                          {e.slots_filled ?? 0}/{e.slots_total}
+                        </td>
+                        <td style={{ maxWidth: "220px" }}>
+                          {e.description || "-"}
+                        </td>
+                        <td>
+                          <button
+                            className="btn-edit"
+                            onClick={() => handleEdit(e)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn-delete"
+                            onClick={() => handleDelete(e._id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
                       </tr>
                     ))}
                     {!events.length && (
                       <tr>
-                        <td colSpan={3} className="muted">
+                        <td colSpan={7} className="muted">
                           No events found.
                         </td>
                       </tr>
