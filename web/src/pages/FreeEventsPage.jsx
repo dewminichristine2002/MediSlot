@@ -7,6 +7,7 @@ import { api } from "../api";
 export default function FreeEventsPage() {
   const [tab, setTab] = useState("patients");
   const [events, setEvents] = useState([]);
+  const [filteredEvents, setFilteredEvents] = useState([]); // ✅ Added
   const [healthCenters, setHealthCenters] = useState([]);
   const [form, setForm] = useState({
     name: "",
@@ -20,11 +21,33 @@ export default function FreeEventsPage() {
   const [err, setErr] = useState("");
   const [success, setSuccess] = useState("");
 
-  // ✅ Load Events
+  // ✅ Added filter states
+  const [search, setSearch] = useState("");
+  const [selectedCenter, setSelectedCenter] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  // ✅ Load Events (upcoming first, past below)
   const loadEvents = async () => {
     try {
       const res = await api.get("/events");
-      setEvents(res.data?.items || res.data || []);
+      const allEvents = res.data?.items || res.data || [];
+
+      const now = new Date();
+
+      // Separate and sort both groups
+      const upcoming = allEvents
+        .filter((e) => new Date(e.date) >= now)
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      const past = allEvents
+        .filter((e) => new Date(e.date) < now)
+        .sort((a, b) => new Date(b.date) - new Date(a.date)); // newest past first
+
+      // Combine: upcoming first, past below
+      const combined = [...upcoming, ...past];
+      setEvents(combined);
+      setFilteredEvents(combined); // ✅ initial filtered list
     } catch (e) {
       console.error("Failed to load events:", e);
     }
@@ -44,6 +67,30 @@ export default function FreeEventsPage() {
     loadEvents();
     loadHealthCenters();
   }, []);
+
+  // ✅ Filtering Logic
+  useEffect(() => {
+    let filtered = [...events];
+
+    if (search.trim()) {
+      const term = search.toLowerCase();
+      filtered = filtered.filter((e) => e.name.toLowerCase().includes(term));
+    }
+
+    if (selectedCenter) {
+      filtered = filtered.filter((e) => e.location === selectedCenter);
+    }
+
+    if (fromDate) {
+      filtered = filtered.filter((e) => new Date(e.date) >= new Date(fromDate));
+    }
+
+    if (toDate) {
+      filtered = filtered.filter((e) => new Date(e.date) <= new Date(toDate));
+    }
+
+    setFilteredEvents(filtered);
+  }, [search, selectedCenter, fromDate, toDate, events]);
 
   // ✅ Handle Input Change
   const handleChange = (e) => {
@@ -234,7 +281,88 @@ export default function FreeEventsPage() {
           ) : tab === "list" ? (
             <div className="card event-table">
               <h3>All Events</h3>
-              {events.length === 0 ? (
+
+              {/* ✅ Added Filters Here */}
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "10px",
+                  marginBottom: "15px",
+                }}
+              >
+                <input
+                  type="text"
+                  placeholder="Search by event name..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{
+                    flex: "0 0 200px",
+                    padding: "8px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid #ccc",
+                  }}
+                />
+                <select
+                  value={selectedCenter}
+                  onChange={(e) => setSelectedCenter(e.target.value)}
+                  style={{
+                    flex: "0 0 200px",
+                    padding: "8px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid #ccc",
+                  }}
+                >
+                  <option value="">All Centers</option>
+                  {healthCenters.map((hc) => (
+                    <option key={hc._id} value={hc.name}>
+                      {hc.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  style={{
+                    flex: "0 0 180px",
+                    padding: "8px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid #ccc",
+                  }}
+                />
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  style={{
+                    flex: "0 0 180px",
+                    padding: "8px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid #ccc",
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    setSearch("");
+                    setSelectedCenter("");
+                    setFromDate("");
+                    setToDate("");
+                  }}
+                  style={{
+                    background: "#f3f4f6",
+                    border: "1px solid #d1d5db",
+                    color: "#374151",
+                    padding: "8px 16px",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+
+              {filteredEvents.length === 0 ? (
                 <p className="muted">No events found.</p>
               ) : (
                 <div className="table-scroll-container">
@@ -250,25 +378,34 @@ export default function FreeEventsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {events.map((e) => (
-                        <tr key={e._id}>
-                          <td>{e.name}</td>
-                          <td>{new Date(e.date).toLocaleDateString()}</td>
-                          <td>{e.time}</td>
-                          <td>{e.location}</td>
-                          <td>
-                            {e.slots_filled ?? 0}/{e.slots_total}
-                          </td>
-                          <td>
-                            <button className="btn-edit" onClick={() => handleEdit(e)}>
-                              Edit
-                            </button>
-                            <button className="btn-delete" onClick={() => handleDelete(e._id)}>
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {filteredEvents.map((e) => {
+                        const isPast = new Date(e.date) < new Date();
+                        return (
+                          <tr key={e._id} className={isPast ? "event-past" : ""}>
+                            <td>{e.name}</td>
+                            <td>{new Date(e.date).toLocaleDateString()}</td>
+                            <td>{e.time}</td>
+                            <td>{e.location}</td>
+                            <td>
+                              {e.slots_filled ?? 0}/{e.slots_total}
+                            </td>
+                            <td>
+                              <button
+                                className="btn-edit"
+                                onClick={() => handleEdit(e)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="btn-delete"
+                                onClick={() => handleDelete(e._id)}
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -308,13 +445,20 @@ function EventCard({ event, getFileUrl }) {
         patientsData.map(async (p) => {
           try {
             const check = await api.get(
-              `/lab-tests?user_id=${p.patient_id?._id || p.patient_id}&q=${encodeURIComponent(event.name)}`
+              `/lab-tests?user_id=${p.patient_id?._id || p.patient_id}&q=${encodeURIComponent(
+                event.name
+              )}`
             );
             const hasReport = check.data?.items?.length > 0;
             if (hasReport) {
               const report = check.data.items[0];
               const filePath = getFileUrl(report.file_path);
-              return { ...p, reportUploaded: true, reportPath: filePath, reportId: report._id };
+              return {
+                ...p,
+                reportUploaded: true,
+                reportPath: filePath,
+                reportId: report._id,
+              };
             }
             return { ...p, reportUploaded: false };
           } catch {
@@ -360,7 +504,12 @@ function EventCard({ event, getFileUrl }) {
       setPatients((prev) =>
         prev.map((p) =>
           p._id === patient._id
-            ? { ...p, reportUploaded: true, reportPath: filePath, reportId: res.data._id }
+            ? {
+                ...p,
+                reportUploaded: true,
+                reportPath: filePath,
+                reportId: res.data._id,
+              }
             : p
         )
       );
@@ -368,7 +517,10 @@ function EventCard({ event, getFileUrl }) {
       alert("✅ Report uploaded successfully and patient notified!");
     } catch (err) {
       console.error("Upload error:", err);
-      alert(err?.response?.data?.message || "❌ Failed to upload or notify the patient");
+      alert(
+        err?.response?.data?.message ||
+          "❌ Failed to upload or notify the patient"
+      );
     } finally {
       setUploadingId(null);
     }
@@ -462,7 +614,8 @@ function EventCard({ event, getFileUrl }) {
                         <td className={`status ${p.status}`}>
                           {p.status === "waitlist" && p.waitlist_position
                             ? `Waitlist - No ${p.waitlist_position}`
-                            : p.status.charAt(0).toUpperCase() + p.status.slice(1)}
+                            : p.status.charAt(0).toUpperCase() +
+                              p.status.slice(1)}
                         </td>
                         <td>
                           {p.status === "attended" ? (
@@ -483,7 +636,9 @@ function EventCard({ event, getFileUrl }) {
                                   disabled={deletingId === p._id}
                                   onClick={() => handleDeleteReport(p)}
                                 >
-                                  {deletingId === p._id ? "Deleting..." : "Delete"}
+                                  {deletingId === p._id
+                                    ? "Deleting..."
+                                    : "Delete"}
                                 </button>
                               </div>
                             ) : (

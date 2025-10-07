@@ -947,34 +947,49 @@ main h2 {
   background: #e0f2fe;
 }
 
+/* === Stylish Form (Professional Edition) === */
 .stylish-form {
-  margin-top: 1rem;
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
-  animation: fadeIn 0.3s ease;
+  margin-top: 1.5rem;
+  background: linear-gradient(145deg, #ffffff 0%, #f9fbfd 100%);
+  border-radius: 20px;
+  padding: 2.2rem 2.5rem;
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.08);
+  animation: fadeIn 0.4s ease-in-out;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.stylish-form:hover {
+  box-shadow: 0 6px 28px rgba(0, 87, 184, 0.15);
+  transform: translateY(-2px);
 }
 
 .stylish-form h3 {
   margin-top: 0;
-  color: #0057b8;
-  font-size: 1.3rem;
+  color: #004aad;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border-bottom: 2px solid #0098ff33;
+  padding-bottom: 0.5rem;
 }
 
+/* === Form Layout === */
 .event-form {
-  margin-top: 1rem;
+  margin-top: 1.5rem;
 }
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .form-group.full-width {
@@ -982,19 +997,24 @@ main h2 {
 }
 
 .form-group label {
-  margin-bottom: 6px;
-  font-weight: 500;
+  margin-bottom: 8px;
+  font-weight: 600;
   color: #1e293b;
+  font-size: 0.95rem;
+  letter-spacing: 0.3px;
 }
 
+/* Inputs, Selects, Textareas */
 .form-group input,
 .form-group select,
 .form-group textarea {
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
+  padding: 12px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.96rem;
+  background: #fff;
+  color: #111827;
+  transition: all 0.25s ease;
 }
 
 .form-group input:focus,
@@ -1003,25 +1023,67 @@ main h2 {
   border-color: #0098ff;
   box-shadow: 0 0 0 3px rgba(0, 152, 255, 0.2);
   outline: none;
+  background: #f8fcff;
 }
 
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+/* === Submit Button === */
 .btn-submit {
   background: linear-gradient(135deg, #0098ff, #0057b8);
   color: #fff;
-  padding: 12px 20px;
+  padding: 13px 24px;
   font-size: 1rem;
   border: none;
-  border-radius: 8px;
-  margin-top: 1.5rem;
+  border-radius: 10px;
+  margin-top: 2rem;
   cursor: pointer;
   font-weight: 600;
+  letter-spacing: 0.3px;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 152, 255, 0.3);
 }
 
 .btn-submit:hover {
   background: linear-gradient(135deg, #007bff, #004aad);
-  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 87, 184, 0.4);
+  transform: translateY(-2px);
 }
+
+.btn-submit:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(0, 87, 184, 0.3);
+}
+
+/* === Animations === */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* === Responsive Improvements === */
+@media (max-width: 600px) {
+  .stylish-form {
+    padding: 1.5rem;
+  }
+  .form-group label {
+    font-size: 0.9rem;
+  }
+  .btn-submit {
+    width: 100%;
+  }
+}
+
 
 .alert {
   padding: 10px 14px;
@@ -1305,7 +1367,7 @@ main h2 {
 }
 
 .event-card-header {
-  background: linear-gradient(135deg, #0057b8, #0098ff);
+  background: linear-gradient(135deg, #0057b8, #3b4247);
   color: #fff;
   padding: 18px;
   display: flex;
@@ -1337,7 +1399,7 @@ main h2 {
   border-top: 1px solid #e5e7eb;
 }
 .btn-view {
-  background: #0057b8;
+  background: #08305e;
   color: #fff;
   border: none;
   padding: 8px 14px;
@@ -1636,4 +1698,115 @@ main h2 {
 
 .btn-delete-report:hover {
   background: #c62828;
+}
+
+
+.event-past:hover {
+  background: linear-gradient(90deg, #fecaca, #fca5a5);
+  transform: scale(1.005);
+}
+
+.event-past td {
+  border-bottom: 1px solid #fca5a5;
+}
+
+/* 🔴 Past Event Badge */
+.badge-past {
+  display: inline-block;
+  background: linear-gradient(135deg, #ef4444, #dc2626); /* red gradient */
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin-left: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+  vertical-align: middle;
+  animation: fadeInBadge 0.3s ease;
+  user-select: none;
+}
+
+/* Small fade-in animation */
+@keyframes fadeInBadge {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Slight glow when hovering */
+.badge-past:hover {
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+  transform: translateY(-1px);
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+  align-items: center;
+  justify-content: center;   
+}
+
+.filter-bar input,
+.filter-bar select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 0.9rem;
+  background: #fff;
+  transition: all 0.2s ease;
+}
+
+.filter-bar input:focus,
+.filter-bar select:focus {
+  border-color: #0098ff;
+  box-shadow: 0 0 0 3px rgba(0, 152, 255, 0.2);
+  outline: none;
+}
+
+.btn-clear {
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.3s;
+}
+.btn-clear:hover {
+  background: #dc2626;
+}
+
+.filter-bar.inside-modal {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0 15px 0;
+  align-items: center;
+}
+
+.filter-bar.inside-modal input {
+  padding: 8px 100px;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  font-size: 0.9rem;
+}
+
+.filter-bar.inside-modal .btn-clear {
+  background: #ef4444;
+  color: #fff;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
 }
