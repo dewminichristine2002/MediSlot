@@ -21,13 +21,17 @@ export default function FreeEventsPage() {
   const [err, setErr] = useState("");
   const [success, setSuccess] = useState("");
 
-  // ✅ Added filter states
+  // ✅ Existing filters (Event List tab)
   const [search, setSearch] = useState("");
   const [selectedCenter, setSelectedCenter] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
-  // ✅ Load Events (upcoming first, past below)
+  // ✅ New filters for “View Patients” tab
+  const [patientEventSearch, setPatientEventSearch] = useState("");
+  const [patientCenterFilter, setPatientCenterFilter] = useState("");
+
+  // ✅ Load Events
   const loadEvents = async () => {
     try {
       const res = await api.get("/events");
@@ -35,11 +39,9 @@ export default function FreeEventsPage() {
 
       const now = new Date();
 
-      // Separate and sort both groups
       const upcoming = allEvents
         .filter((e) => new Date(e.date) >= now)
         .sort((a, b) => new Date(a.date) - new Date(b.date));
-
       const past = allEvents
         .filter((e) => new Date(e.date) < now)
         .sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -52,6 +54,7 @@ export default function FreeEventsPage() {
     }
   };
 
+  // ✅ Load Centers
   const loadHealthCenters = async () => {
     try {
       const res = await api.get("/healthcenters/names");
@@ -66,26 +69,30 @@ export default function FreeEventsPage() {
     loadHealthCenters();
   }, []);
 
-  // ✅ Filtering Logic
+  // ✅ Filtering for Event List tab
   useEffect(() => {
     let filtered = [...events];
-
     if (search.trim()) {
-      const term = search.toLowerCase();
-      filtered = filtered.filter((e) => e.name.toLowerCase().includes(term));
+      filtered = filtered.filter((e) =>
+        e.name.toLowerCase().includes(search.toLowerCase())
+      );
     }
-    if (selectedCenter) {
-      filtered = filtered.filter((e) => e.location === selectedCenter);
-    }
-    if (fromDate) {
-      filtered = filtered.filter((e) => new Date(e.date) >= new Date(fromDate));
-    }
-    if (toDate) {
-      filtered = filtered.filter((e) => new Date(e.date) <= new Date(toDate));
-    }
-
+    if (selectedCenter) filtered = filtered.filter((e) => e.location === selectedCenter);
+    if (fromDate) filtered = filtered.filter((e) => new Date(e.date) >= new Date(fromDate));
+    if (toDate) filtered = filtered.filter((e) => new Date(e.date) <= new Date(toDate));
     setFilteredEvents(filtered);
   }, [search, selectedCenter, fromDate, toDate, events]);
+
+  // ✅ Filtering for “View Patients” tab
+  const filteredPatientEvents = events.filter((e) => {
+    const byName = patientEventSearch
+      ? e.name.toLowerCase().includes(patientEventSearch.toLowerCase())
+      : true;
+    const byCenter = patientCenterFilter
+      ? e.location === patientCenterFilter
+      : true;
+    return byName && byCenter;
+  });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -161,30 +168,23 @@ export default function FreeEventsPage() {
             <h2>Free Events</h2>
           </div>
 
+          {/* Tabs */}
           <div className="tabs">
-            <button
-              className={`tab-btn ${tab === "list" ? "active" : ""}`}
-              onClick={() => setTab("list")}
-            >
+            <button className={`tab-btn ${tab === "list" ? "active" : ""}`} onClick={() => setTab("list")}>
               Event List
             </button>
-            <button
-              className={`tab-btn ${tab === "register" ? "active" : ""}`}
-              onClick={() => setTab("register")}
-            >
+            <button className={`tab-btn ${tab === "register" ? "active" : ""}`} onClick={() => setTab("register")}>
               {editId ? "Update Event" : "Event Registration"}
             </button>
-            <button
-              className={`tab-btn ${tab === "patients" ? "active" : ""}`}
-              onClick={() => setTab("patients")}
-            >
-              View Patients
+            <button className={`tab-btn ${tab === "patients" ? "active" : ""}`} onClick={() => setTab("patients")}>
+              View Patients & Upload Lab Test Reports
             </button>
           </div>
 
           {success && <div className="alert success">{success}</div>}
           {err && <div className="alert error">{err}</div>}
 
+          {/* ---------- EVENT REGISTRATION ---------- */}
           {tab === "register" ? (
             <div className="card stylish-form">
               <h3>{editId ? "Update Event" : "Create a New Event"}</h3>
@@ -192,161 +192,53 @@ export default function FreeEventsPage() {
                 <div className="form-grid">
                   <div className="form-group">
                     <label>Event Name</label>
-                    <input
-                      name="name"
-                      value={form.name}
-                      onChange={handleChange}
-                      required
-                      placeholder="Enter event name"
-                    />
+                    <input name="name" value={form.name} onChange={handleChange} required placeholder="Enter event name" />
                   </div>
                   <div className="form-group">
                     <label>Date</label>
-                    <input
-                      type="date"
-                      name="date"
-                      value={form.date}
-                      onChange={handleChange}
-                      required
-                    />
+                    <input type="date" name="date" value={form.date} onChange={handleChange} required />
                   </div>
                   <div className="form-group">
                     <label>Time</label>
-                    <input
-                      type="time"
-                      name="time"
-                      value={form.time}
-                      onChange={handleChange}
-                      required
-                    />
+                    <input type="time" name="time" value={form.time} onChange={handleChange} required />
                   </div>
                   <div className="form-group">
                     <label>Total Slots</label>
-                    <input
-                      type="number"
-                      name="slots_total"
-                      value={form.slots_total}
-                      onChange={handleChange}
-                      min="0"
-                      required
-                    />
+                    <input type="number" name="slots_total" value={form.slots_total} onChange={handleChange} min="0" required />
                   </div>
                   <div className="form-group full-width">
                     <label>Location (Health Center)</label>
-                    <select
-                      name="location"
-                      value={form.location}
-                      onChange={handleChange}
-                      required
-                    >
+                    <select name="location" value={form.location} onChange={handleChange} required>
                       <option value="">Select Health Center</option>
                       {healthCenters.map((hc) => (
-                        <option key={hc._id} value={hc.name}>
-                          {hc.name}
-                          {hc.city ? ` — ${hc.city}` : ""}
-                          {hc.district ? `, ${hc.district}` : ""}
-                          {hc.province ? `, ${hc.province}` : ""}
-                        </option>
+                        <option key={hc._id} value={hc.name}>{hc.name}</option>
                       ))}
                     </select>
                   </div>
                   <div className="form-group full-width">
                     <label>Description</label>
-                    <textarea
-                      name="description"
-                      rows="3"
-                      value={form.description}
-                      onChange={handleChange}
-                      placeholder="Describe the event"
-                    ></textarea>
+                    <textarea name="description" rows="3" value={form.description} onChange={handleChange} placeholder="Describe the event"></textarea>
                   </div>
                 </div>
-                <button type="submit" className="btn-submit">
-                  {editId ? "Save Changes" : "Register Event"}
-                </button>
+                <button type="submit" className="btn-submit">{editId ? "Save Changes" : "Register Event"}</button>
               </form>
             </div>
           ) : tab === "list" ? (
+            /* ---------- EVENT LIST ---------- */
             <div className="card event-table">
-              <h3>All Events</h3>
-
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: "10px",
-                  marginBottom: "15px",
-                }}
-              >
-                <input
-                  type="text"
-                  placeholder="Search by event name..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  style={{
-                    flex: "0 0 200px",
-                    padding: "8px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid #ccc",
-                  }}
-                />
-                <select
-                  value={selectedCenter}
-                  onChange={(e) => setSelectedCenter(e.target.value)}
-                  style={{
-                    flex: "0 0 200px",
-                    padding: "8px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid #ccc",
-                  }}
-                >
+              <br></br>
+              {/* existing filter bar (unchanged) */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "15px" }}>
+                <input type="text" placeholder="Search by event name..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: "0 0 200px", padding: "8px 12px", borderRadius: "8px", border: "1px solid #ccc" }} />
+                <select value={selectedCenter} onChange={(e) => setSelectedCenter(e.target.value)} style={{ flex: "0 0 200px", padding: "8px 12px", borderRadius: "8px", border: "1px solid #ccc" }}>
                   <option value="">All Centers</option>
                   {healthCenters.map((hc) => (
-                    <option key={hc._id} value={hc.name}>
-                      {hc.name}
-                    </option>
+                    <option key={hc._id} value={hc.name}>{hc.name}</option>
                   ))}
                 </select>
-                <input
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  style={{
-                    flex: "0 0 180px",
-                    padding: "8px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid #ccc",
-                  }}
-                />
-                <input
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  style={{
-                    flex: "0 0 180px",
-                    padding: "8px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid #ccc",
-                  }}
-                />
-                <button
-                  onClick={() => {
-                    setSearch("");
-                    setSelectedCenter("");
-                    setFromDate("");
-                    setToDate("");
-                  }}
-                  style={{
-                    background: "#f3f4f6",
-                    border: "1px solid #d1d5db",
-                    color: "#374151",
-                    padding: "8px 16px",
-                    borderRadius: "8px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Clear
-                </button>
+                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={{ flex: "0 0 180px", padding: "8px 12px", borderRadius: "8px", border: "1px solid #ccc" }} />
+                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={{ flex: "0 0 180px", padding: "8px 12px", borderRadius: "8px", border: "1px solid #ccc" }} />
+                <button onClick={() => { setSearch(""); setSelectedCenter(""); setFromDate(""); setToDate(""); }} style={{ background: "#f3f4f6", border: "1px solid #d1d5db", color: "#374151", padding: "8px 16px", borderRadius: "8px", cursor: "pointer" }}>Clear</button>
               </div>
 
               {filteredEvents.length === 0 ? (
@@ -355,55 +247,71 @@ export default function FreeEventsPage() {
                 <div className="table-scroll-container">
                   <table className="styled-table">
                     <thead>
-                      <tr>
-                        <th>Free Event Name</th>
-                        <th>Date</th>
-                        <th>Time</th>
-                        <th>Location</th>
-                        <th>Slots</th>
-                        <th>Actions</th>
-                      </tr>
+                      <tr><th>Event Name</th><th>Date</th><th>Time</th><th>Location</th><th>Slots</th><th>Actions</th></tr>
                     </thead>
                     <tbody>
-                      {filteredEvents.map((e) => {
-                        const isPast = new Date(e.date) < new Date();
-                        return (
-                          <tr key={e._id} className={isPast ? "event-past" : ""}>
-                            <td>{e.name}</td>
-                            <td>{new Date(e.date).toLocaleDateString()}</td>
-                            <td>{e.time}</td>
-                            <td>{e.location}</td>
-                            <td>
-                              {e.slots_filled ?? 0}/{e.slots_total}
-                            </td>
-                            <td>
-                              <button
-                                className="btn-edit"
-                                onClick={() => handleEdit(e)}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                className="btn-delete"
-                                onClick={() => handleDelete(e._id)}
-                              >
-                                Delete
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {filteredEvents.map((e) => (
+                        <tr key={e._id}>
+                          <td>{e.name}</td>
+                          <td>{new Date(e.date).toLocaleDateString()}</td>
+                          <td>{e.time}</td>
+                          <td>{e.location}</td>
+                          <td>{e.slots_filled ?? 0}/{e.slots_total}</td>
+                          <td>
+                            <button className="btn-edit" onClick={() => handleEdit(e)}>Edit</button>
+                            <button className="btn-delete" onClick={() => handleDelete(e._id)}>Delete</button>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
               )}
             </div>
           ) : (
-            <div className="event-grid">
-              {events.map((ev) => (
-                <EventCard key={ev._id} event={ev} getFileUrl={getFileUrl} />
-              ))}
-            </div>
+            /* ---------- VIEW PATIENTS ---------- */
+            <>
+              <br></br>
+              <div className="view-patient-filter-bar">
+                <input
+                  type="text"
+                  placeholder="Search by Event Name..."
+                  value={patientEventSearch}
+                  onChange={(e) => setPatientEventSearch(e.target.value)}
+                />
+                <select
+                  value={patientCenterFilter}
+                  onChange={(e) => setPatientCenterFilter(e.target.value)}
+                >
+                  <option value="">All Centers</option>
+                  {healthCenters.map((hc) => (
+                    <option key={hc._id} value={hc.name}>
+                      {hc.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => {
+                    setPatientEventSearch("");
+                    setPatientCenterFilter("");
+                  }}
+                  className="clear-btn"
+                >
+                  Clear
+                </button>
+              </div>
+
+
+              <div className="event-grid">
+                {filteredPatientEvents.length === 0 ? (
+                  <p className="muted">No events match your filter.</p>
+                ) : (
+                  filteredPatientEvents.map((ev) => (
+                    <EventCard key={ev._id} event={ev} getFileUrl={getFileUrl} />
+                  ))
+                )}
+              </div>
+            </>
           )}
 
           <Footer />
@@ -508,11 +416,11 @@ function EventCard({ event, getFileUrl }) {
         prev.map((p) =>
           p._id === patient._id
             ? {
-                ...p,
-                reportUploaded: true,
-                reportPath: filePath,
-                reportId: res.data._id,
-              }
+              ...p,
+              reportUploaded: true,
+              reportPath: filePath,
+              reportId: res.data._id,
+            }
             : p
         )
       );
@@ -522,7 +430,7 @@ function EventCard({ event, getFileUrl }) {
       console.error("Upload error:", err);
       alert(
         err?.response?.data?.message ||
-          "❌ Failed to upload or notify the patient"
+        "❌ Failed to upload or notify the patient"
       );
     } finally {
       setUploadingId(null);
@@ -635,7 +543,7 @@ function EventCard({ event, getFileUrl }) {
                           {p.status === "waitlist" && p.waitlist_position
                             ? `Waitlist - No ${p.waitlist_position}`
                             : p.status.charAt(0).toUpperCase() +
-                              p.status.slice(1)}
+                            p.status.slice(1)}
                         </td>
                         <td>
                           {p.status === "attended" ? (
