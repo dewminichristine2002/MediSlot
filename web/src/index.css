@@ -919,3 +919,128 @@ main h2 {
 .save-btn:hover {
   background: #00796b;
 }
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-top: 1rem;
+}
+
+.tab-btn {
+  padding: 10px 20px;
+  border: none;
+  background: #f1f5f9;
+  color: #1e293b;
+  border-radius: 8px 8px 0 0;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, #0098ff, #0057b8);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 98, 255, 0.3);
+}
+
+.tab-btn:hover {
+  background: #e0f2fe;
+}
+
+.stylish-form {
+  margin-top: 1rem;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+  animation: fadeIn 0.3s ease;
+}
+
+.stylish-form h3 {
+  margin-top: 0;
+  color: #0057b8;
+  font-size: 1.3rem;
+}
+
+.event-form {
+  margin-top: 1rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-group label {
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: #0098ff;
+  box-shadow: 0 0 0 3px rgba(0, 152, 255, 0.2);
+  outline: none;
+}
+
+.btn-submit {
+  background: linear-gradient(135deg, #0098ff, #0057b8);
+  color: #fff;
+  padding: 12px 20px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  margin-top: 1.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-submit:hover {
+  background: linear-gradient(135deg, #007bff, #004aad);
+  transform: translateY(-1px);
+}
+
+.alert {
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-top: 10px;
+  font-size: 0.9rem;
+}
+
+.alert.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.alert.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
