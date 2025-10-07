@@ -386,7 +386,7 @@ function EventCard({ event }) {
                             : p.status.charAt(0).toUpperCase() + p.status.slice(1)}
                         </td>
                         <td>
-                          {p.status === "confirmed" ? (
+                          {p.status === "attended" ? (
                             p.reportUploaded ? (
                               <a
                                 href={p.reportPath}
