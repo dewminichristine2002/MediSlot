@@ -23,6 +23,7 @@ app.get("/healthz", (_req, res) => res.json({ ok: true }));
 const uploadsRoot = path.join(__dirname, 'uploads');
 fs.mkdirSync(uploadsRoot, { recursive: true });
 app.use('/uploads', express.static(uploadsRoot));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // --- Connect DB (non-fatal on dev) ---
 (async () => {

@@ -20,6 +20,7 @@ function buildFilters(q) {
 }
 
 // POST /api/lab-tests  (supports multipart form-data via multer.single('file'))
+// POST /api/lab-tests  (supports multipart form-data via multer.single('file'))
 exports.create = async (req, res) => {
   try {
     const body = { ...req.body };
@@ -41,19 +42,34 @@ exports.create = async (req, res) => {
       });
     }
 
+    // 🚫 Check if this user already has a report uploaded for this event/test
+    const existing = await LabTestResult.findOne({
+      user_id: body.user_id,
+      testOrEvent_name: body.testOrEvent_name,
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        message: 'A report for this user and event has already been uploaded.',
+      });
+    }
+
+    // ✅ Proceed to create
     const doc = await LabTestResult.create(body);
 
-    // 🔔 Fire-and-forget notification
+    // 🔔 Fire notification asynchronously
     notifyLabResultReady({ lab_test_result_id: doc._id })
       .catch(err => console.error('[notifyLabResultReady] failed:', err.message));
 
     return res.status(201).json(doc);
   } catch (err) {
+    console.error("Create lab test error:", err);
     return res
       .status(400)
       .json({ message: 'Failed to create lab test result', error: err.message });
   }
 };
+
 
 // GET /api/lab-tests
 exports.list = async (req, res) => {
