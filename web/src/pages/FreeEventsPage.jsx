@@ -322,7 +322,7 @@ export default function FreeEventsPage() {
 }
 
 /* 🌟 EVENT CARD COMPONENT 🌟 */
-function EventCard({ event, getFileUrl }) {
+function EventCard({ event }) {
   const [showModal, setShowModal] = useState(false);
   const [patients, setPatients] = useState([]);
   const [filteredPatients, setFilteredPatients] = useState([]);
@@ -331,6 +331,14 @@ function EventCard({ event, getFileUrl }) {
   const [uploadingId, setUploadingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
+  // ✅ Converts backend file_path into a full Cloudinary URL
+  const getFileUrl = (path) => {
+    if (!path) return "";
+    if (path.startsWith("http")) return path; // already full URL
+    return `https://res.cloudinary.com/dt9el8znk/raw/upload/${path}`;
+  };
+
+  // 🧩 Load all patients registered for this event
   const loadPatients = async () => {
     setLoading(true);
     try {
@@ -345,6 +353,7 @@ function EventCard({ event, getFileUrl }) {
                 event.name
               )}`
             );
+
             const hasReport = check.data?.items?.length > 0;
             if (hasReport) {
               const report = check.data.items[0];
@@ -394,6 +403,7 @@ function EventCard({ event, getFileUrl }) {
 
   const closeModal = () => setShowModal(false);
 
+  // ✅ Upload PDF to backend (which stores in Cloudinary)
   const handleUpload = async (patient, file) => {
     if (!file) return alert("Please select a file first.");
     if (patient.reportUploaded)
@@ -416,11 +426,11 @@ function EventCard({ event, getFileUrl }) {
         prev.map((p) =>
           p._id === patient._id
             ? {
-              ...p,
-              reportUploaded: true,
-              reportPath: filePath,
-              reportId: res.data._id,
-            }
+                ...p,
+                reportUploaded: true,
+                reportPath: filePath,
+                reportId: res.data._id,
+              }
             : p
         )
       );
@@ -430,13 +440,14 @@ function EventCard({ event, getFileUrl }) {
       console.error("Upload error:", err);
       alert(
         err?.response?.data?.message ||
-        "❌ Failed to upload or notify the patient"
+          "❌ Failed to upload or notify the patient"
       );
     } finally {
       setUploadingId(null);
     }
   };
 
+  // ✅ Delete report from Cloudinary + backend
   const handleDeleteReport = async (patient) => {
     if (!window.confirm("Are you sure you want to delete this report?")) return;
 
@@ -479,6 +490,7 @@ function EventCard({ event, getFileUrl }) {
             {event.slots_filled ?? 0}/{event.slots_total} filled
           </div>
         </div>
+
         <div className="event-card-footer">
           <button className="btn-view" onClick={openModal}>
             View Patients
@@ -496,7 +508,7 @@ function EventCard({ event, getFileUrl }) {
               </button>
             </div>
 
-            {/* ✅ Patient Filter Input + Clear */}
+            {/* 🔍 Patient search filter */}
             <div className="patient-search-container">
               <input
                 type="text"
@@ -543,7 +555,7 @@ function EventCard({ event, getFileUrl }) {
                           {p.status === "waitlist" && p.waitlist_position
                             ? `Waitlist - No ${p.waitlist_position}`
                             : p.status.charAt(0).toUpperCase() +
-                            p.status.slice(1)}
+                              p.status.slice(1)}
                         </td>
                         <td>
                           {p.status === "attended" ? (

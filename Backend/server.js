@@ -1,10 +1,16 @@
 // server.js
+
+//clous storage
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const fs = require('fs');
 const path = require('path');
+
+
 
 dotenv.config();
 
@@ -19,11 +25,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.get("/", (_req, res) => res.send("OK"));
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
-// --- Ensure uploads dir and serve static ---
+// --- Ensure uploads dir (optional local fallback) ---
 const uploadsRoot = path.join(__dirname, 'uploads');
 fs.mkdirSync(uploadsRoot, { recursive: true });
 app.use('/uploads', express.static(uploadsRoot));
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // --- Connect DB (non-fatal on dev) ---
 (async () => {
