@@ -12,24 +12,16 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { myBookingsApi } from "../api/bookings";
 
-const keyOf = (b) => `${b.scheduledDate}|${b.scheduledTime}`;
-
 export default function BookingHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [list, setList] = useState([]);
-
-  // server filters
   const [scope, setScope] = useState("upcoming"); // upcoming | past | all
-  const [pMethod, setPMethod] = useState("all"); // all | online | pay_at_center
-  const [pStatus, setPStatus] = useState("all"); // all | paid | unpaid
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = {};
       if (scope !== "all") params.scope = scope;
-      if (pMethod !== "all") params.paymentMethod = pMethod;
-      if (pStatus !== "all") params.paymentStatus = pStatus;
 
       const { data } = await myBookingsApi(params);
 
@@ -45,7 +37,7 @@ export default function BookingHistoryScreen() {
     } finally {
       setLoading(false);
     }
-  }, [scope, pMethod, pStatus]);
+  }, [scope]);
 
   useFocusEffect(
     useCallback(() => {
@@ -59,26 +51,34 @@ export default function BookingHistoryScreen() {
       style={[
         styles.chip,
         {
-          backgroundColor: on ? "#e8f0fe" : "#fff",
-          borderColor: on ? "#2563eb" : "#e5e7eb",
+          backgroundColor: on ? "#2563eb" : "#fff",
+          borderColor: on ? "#2563eb" : "#d1d5db",
         },
       ]}
     >
-      <Text style={{ fontWeight: "700" }}>{children}</Text>
+      <Text
+        style={[
+          styles.chipText,
+          { color: on ? "#fff" : "#1f2937", fontWeight: on ? "700" : "500" },
+        ]}
+      >
+        {children.charAt(0).toUpperCase() + children.slice(1)}
+      </Text>
     </Pressable>
   );
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={styles.loadingText}>Loading your bookings...</Text>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Gradient header (same vibe as Free Events / NewBooking) */}
+    <View style={styles.container}>
+      {/* Gradient Header */}
       <LinearGradient colors={["#2563eb", "#06b6d4"]} style={styles.header}>
         <Text style={styles.headerTitle}>My Bookings</Text>
         <Text style={styles.headerSubtitle}>
@@ -86,11 +86,9 @@ export default function BookingHistoryScreen() {
         </Text>
       </LinearGradient>
 
-      <View style={{ padding: 16 }}>
-        <Text style={styles.label}>Filters</Text>
-
-        {/* scope */}
-        <View style={styles.rowWrap}>
+      <View style={styles.content}>
+        {/* Filter Row */}
+        <View style={styles.filterContainer}>
           {["upcoming", "past", "all"].map((s) => (
             <Chip key={s} on={scope === s} onPress={() => setScope(s)}>
               {s}
@@ -98,36 +96,15 @@ export default function BookingHistoryScreen() {
           ))}
         </View>
 
-        {/* payment method */}
-        <View style={styles.rowWrap}>
-          {["all", "online", "pay_at_center"].map((s) => (
-            <Chip key={s} on={pMethod === s} onPress={() => setPMethod(s)}>
-              {s}
-            </Chip>
-          ))}
-        </View>
-
-        {/* payment status */}
-        <View style={styles.rowWrap}>
-          {["all", "paid", "unpaid"].map((s) => (
-            <Chip key={s} on={pStatus === s} onPress={() => setPStatus(s)}>
-              {s}
-            </Chip>
-          ))}
-        </View>
-
+        {/* Booking List */}
         <FlatList
           data={list}
           keyExtractor={(b) => b._id}
-          contentContainerStyle={{ gap: 12, paddingTop: 4, paddingBottom: 12 }}
+          contentContainerStyle={styles.listContainer}
           renderItem={({ item }) => (
             <View style={styles.card}>
               <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>
-                  #{item.appointment_no}
-                </Text>
-
-                {/* availability-ish badge style for status */}
+                <Text style={styles.cardTitle}>#{item.appointment_no}</Text>
                 <View
                   style={[
                     styles.badge,
@@ -149,33 +126,38 @@ export default function BookingHistoryScreen() {
                 </View>
               </View>
 
-              <Text style={styles.muted}>
-                📅 {item.scheduledDate}  ⏰ {item.scheduledTime}
+              <Text style={styles.dateRow}>
+                📅 {item.scheduledDate} ‧ ⏰ {item.scheduledTime}
               </Text>
 
-              {/* items */}
-              {item.items?.map((it, i) => (
-                <Text key={i} style={{ marginTop: 6 }}>
-                  • {it.name} — LKR {it.price}
-                </Text>
-              ))}
+              <View style={styles.itemsContainer}>
+                {item.items?.map((it, i) => (
+                  <Text key={i} style={styles.itemText}>
+                    • {it.name} —{" "}
+                    <Text style={styles.itemPrice}>LKR {it.price}</Text>
+                  </Text>
+                ))}
+              </View>
 
               <View style={styles.footerRow}>
-                <Text style={{ fontWeight: "700" }}>
-                  Total: LKR {item.price}
-                </Text>
+                <Text style={styles.totalText}>Total: LKR {item.price}</Text>
                 <View style={styles.methodPill}>
-                  <Text style={{ fontWeight: "700", color: "#0c4a6e" }}>
-                    {item.payment?.method === "online" ? "Online" : "Pay at center"}
+                  <Text style={styles.methodText}>
+                    {item.payment?.method === "online"
+                      ? "Online Payment"
+                      : "Pay at Center"}
                   </Text>
                 </View>
               </View>
             </View>
           )}
           ListEmptyComponent={
-            <Text style={{ textAlign: "center", marginTop: 20 }}>
-              No bookings.
-            </Text>
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No bookings found</Text>
+              <Text style={styles.emptySubText}>
+                Try switching between Upcoming or Past
+              </Text>
+            </View>
           }
         />
       </View>
@@ -184,70 +166,112 @@ export default function BookingHistoryScreen() {
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#f9fafb" },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  loadingText: {
+    marginTop: 8,
+    color: "#6b7280",
+    fontSize: 14,
+  },
+
   header: {
     paddingTop: 60,
     paddingBottom: 24,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
-  headerTitle: { fontSize: 22, fontWeight: "800", color: "#fff", marginBottom: 4 },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#fff",
+    marginBottom: 4,
+  },
   headerSubtitle: { fontSize: 14, color: "#e0f2fe" },
 
-  label: { fontWeight: "700", marginTop: 12, marginBottom: 8 },
-
-  rowWrap: {
+  content: { flex: 1, padding: 16 },
+  filterContainer: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 10,
+    justifyContent: "center",
+    marginBottom: 20,
   },
 
   chip: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginRight: 10,
-    marginBottom: 10,
-  },
-
-  card: {
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#dbeafe", // light blue border like the screenshot
+    borderRadius: 20,
+    borderWidth: 1.5,
+    marginHorizontal: 6,
     shadowColor: "#000",
     shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 3,
     elevation: 2,
+  },
+  chipText: { fontSize: 14, textTransform: "capitalize" },
+
+  listContainer: { gap: 14, paddingBottom: 20 },
+
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
   },
   cardHeader: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 6,
+    alignItems: "center",
   },
-  cardTitle: { fontSize: 18, fontWeight: "800", color: "#0f172a" },
-  muted: { color: "#6b7280", marginBottom: 4 },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1e293b",
+  },
+
+  dateRow: {
+    marginTop: 6,
+    color: "#475569",
+    fontSize: 14,
+  },
+
+  itemsContainer: { marginTop: 8 },
+  itemText: { color: "#334155", fontSize: 14, marginTop: 2 },
+  itemPrice: { color: "#1e3a8a", fontWeight: "600" },
 
   badge: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 18,
+    borderRadius: 16,
   },
 
   footerRow: {
-    marginTop: 10,
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 12,
   },
+  totalText: { fontWeight: "700", color: "#111827", fontSize: 15 },
   methodPill: {
+    backgroundColor: "#e0f2fe",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: "#e0f2fe",
   },
+  methodText: { color: "#0c4a6e", fontWeight: "600" },
+
+  emptyContainer: { alignItems: "center", marginTop: 40 },
+  emptyText: { fontSize: 16, fontWeight: "700", color: "#64748b" },
+  emptySubText: { color: "#94a3b8", fontSize: 13, marginTop: 4 },
 });

@@ -28,7 +28,8 @@ const bad = (res, msg) => res.status(400).json({ error: msg });
 
 exports.createCheckoutSession = async (req, res) => {
   try {
-    if (!stripe) return bad(res, "Stripe is not configured");
+    const s = getStripe();
+    if (!s) return bad(res, "Stripe is not configured");
     const { bookingId } = req.body;
     if (!bookingId) return bad(res, "bookingId is required");
 
@@ -82,11 +83,12 @@ exports.createCheckoutSession = async (req, res) => {
 // GET /api/payments/checkout-return?session_id=...
 exports.checkoutReturn = async (req, res) => {
   try {
-    if (!stripe) return res.status(400).send("Stripe not configured");
+    const s = getStripe();
+    if (!s) return res.status(400).send("Stripe not configured");
     const { session_id } = req.query;
     if (!session_id) return res.status(400).send("Missing session_id");
 
-    const session = await stripe.checkout.sessions.retrieve(session_id);
+    const session = await s.checkout.sessions.retrieve(session_id);
     const bookingId = session.metadata?.bookingId;
 
     if (session.payment_status === "paid" && bookingId) {
@@ -149,7 +151,8 @@ exports.checkoutCancel = (_req, res) => {
 
 exports.createIntent = async (req, res) => {
   try {
-    if (!stripe) return bad(res, "Stripe is not configured");
+    const s = getStripe();
+    if (!s) return bad(res, "Stripe is not configured");
     const { bookingId } = req.body;
     if (!bookingId) return bad(res, "bookingId is required");
 

@@ -1,16 +1,16 @@
-const mongoose = require('mongoose');
-const LabTestResult = require('../../models/LabTestResult');
-const fs = require('fs');
-const path = require('path');
+const mongoose = require("mongoose");
+const LabTestResult = require("../../models/LabTestResult");
+const fs = require("fs");
+const path = require("path");
 
 // ⬇️ Import the notifier (same folder)
-const { notifyLabResultReady } = require('./eventLabNotificationController');
+const { notifyLabResultReady } = require("./eventLabNotificationController");
 
 // Build filters for list endpoint
 function buildFilters(q) {
   const f = {};
   if (q.user_id && mongoose.isValidObjectId(q.user_id)) f.user_id = q.user_id;
-  if (q.q) f.testOrEvent_name = { $regex: q.q.trim(), $options: 'i' };
+  if (q.q) f.testOrEvent_name = { $regex: q.q.trim(), $options: "i" };
   if (q.from || q.to) {
     f.uploaded_at = {};
     if (q.from) f.uploaded_at.$gte = new Date(q.from);
@@ -19,6 +19,7 @@ function buildFilters(q) {
   return f;
 }
 
+// POST /api/lab-tests  (supports multipart form-data via multer.single('file'))
 // POST /api/lab-tests  (supports multipart form-data via multer.single('file'))
 exports.create = async (req, res) => {
   try {
@@ -30,54 +31,89 @@ exports.create = async (req, res) => {
     }
 
     if (!body.user_id || !mongoose.isValidObjectId(body.user_id)) {
-      return res.status(400).json({ message: 'Invalid or missing user_id' });
+      return res.status(400).json({ message: "Invalid or missing user_id" });
     }
     if (!body.testOrEvent_name) {
-      return res.status(400).json({ message: 'testOrEvent_name is required' });
+      return res.status(400).json({ message: "testOrEvent_name is required" });
     }
     if (!body.file_path) {
       return res.status(400).json({
-        message: 'file is required (multipart) or file_path must be provided',
+        message: "file is required (multipart) or file_path must be provided",
       });
     }
 
+    // 🚫 Check if this user already has a report uploaded for this event/test
+    const existing = await LabTestResult.findOne({
+      user_id: body.user_id,
+      testOrEvent_name: body.testOrEvent_name,
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        message: "A report for this user and event has already been uploaded.",
+      });
+    }
+
+    // ✅ Proceed to create
     const doc = await LabTestResult.create(body);
 
-    // 🔔 Fire-and-forget notification
-    notifyLabResultReady({ lab_test_result_id: doc._id })
-      .catch(err => console.error('[notifyLabResultReady] failed:', err.message));
+    // 🔔 Fire notification asynchronously
+    notifyLabResultReady({ lab_test_result_id: doc._id }).catch((err) =>
+      console.error("[notifyLabResultReady] failed:", err.message)
+    );
 
     return res.status(201).json(doc);
   } catch (err) {
+    console.error("Create lab test error:", err);
     return res
       .status(400)
-      .json({ message: 'Failed to create lab test result', error: err.message });
+      .json({
+        message: "Failed to create lab test result",
+        error: err.message,
+      });
   }
 };
 
 // GET /api/lab-tests
 exports.list = async (req, res) => {
   try {
-    const page = Math.max(parseInt(req.query.page || '1', 10), 1);
-    const limit = Math.min(Math.max(parseInt(req.query.limit || '10', 10), 1), 100);
+    const page = Math.max(parseInt(req.query.page || "1", 10), 1);
+    const limit = Math.min(
+      Math.max(parseInt(req.query.limit || "10", 10), 1),
+      100
+    );
     const skip = (page - 1) * limit;
 
     const filters = buildFilters(req.query);
 
-    const allowed = new Set(['uploaded_at', 'testOrEvent_name']);
-    const sortField = allowed.has(req.query.sort) ? req.query.sort : 'uploaded_at';
-    const sortOrder = req.query.order === 'asc' ? 1 : -1;
+    const allowed = new Set(["uploaded_at", "testOrEvent_name"]);
+    const sortField = allowed.has(req.query.sort)
+      ? req.query.sort
+      : "uploaded_at";
+    const sortOrder = req.query.order === "asc" ? 1 : -1;
 
     const [items, total] = await Promise.all([
-      LabTestResult.find(filters).sort({ [sortField]: sortOrder }).skip(skip).limit(limit),
+      LabTestResult.find(filters)
+        .sort({ [sortField]: sortOrder })
+        .skip(skip)
+        .limit(limit),
       LabTestResult.countDocuments(filters),
     ]);
 
-    return res.json({ page, limit, total, pages: Math.ceil(total / limit), items });
+    return res.json({
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+      items,
+    });
   } catch (err) {
     return res
       .status(500)
-      .json({ message: 'Failed to fetch lab test results', error: err.message });
+      .json({
+        message: "Failed to fetch lab test results",
+        error: err.message,
+      });
   }
 };
 
@@ -85,15 +121,17 @@ exports.list = async (req, res) => {
 exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid id' });
+    if (!mongoose.isValidObjectId(id))
+      return res.status(400).json({ message: "Invalid id" });
 
     const doc = await LabTestResult.findById(id);
-    if (!doc) return res.status(404).json({ message: 'Lab test result not found' });
+    if (!doc)
+      return res.status(404).json({ message: "Lab test result not found" });
     return res.json(doc);
   } catch (err) {
     return res
       .status(500)
-      .json({ message: 'Failed to fetch lab test result', error: err.message });
+      .json({ message: "Failed to fetch lab test result", error: err.message });
   }
 };
 
@@ -101,7 +139,8 @@ exports.getById = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid id' });
+    if (!mongoose.isValidObjectId(id))
+      return res.status(400).json({ message: "Invalid id" });
 
     const update = { ...req.body };
     if (req.file) {
@@ -109,20 +148,24 @@ exports.update = async (req, res) => {
     }
 
     if (Object.keys(update).length === 0) {
-      return res.status(400).json({ message: 'No fields to update' });
+      return res.status(400).json({ message: "No fields to update" });
     }
 
     const doc = await LabTestResult.findByIdAndUpdate(id, update, {
       new: true,
       runValidators: true,
     });
-    if (!doc) return res.status(404).json({ message: 'Lab test result not found' });
+    if (!doc)
+      return res.status(404).json({ message: "Lab test result not found" });
 
     return res.json(doc);
   } catch (err) {
     return res
       .status(400)
-      .json({ message: 'Failed to update lab test result', error: err.message });
+      .json({
+        message: "Failed to update lab test result",
+        error: err.message,
+      });
   }
 };
 
@@ -130,16 +173,21 @@ exports.update = async (req, res) => {
 exports.remove = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid id' });
+    if (!mongoose.isValidObjectId(id))
+      return res.status(400).json({ message: "Invalid id" });
 
     const del = await LabTestResult.findByIdAndDelete(id);
-    if (!del) return res.status(404).json({ message: 'Lab test result not found' });
+    if (!del)
+      return res.status(404).json({ message: "Lab test result not found" });
 
-    return res.json({ message: 'Lab test result deleted' });
+    return res.json({ message: "Lab test result deleted" });
   } catch (err) {
     return res
       .status(500)
-      .json({ message: 'Failed to delete lab test result', error: err.message });
+      .json({
+        message: "Failed to delete lab test result",
+        error: err.message,
+      });
   }
 };
 
@@ -147,20 +195,35 @@ exports.remove = async (req, res) => {
 exports.listByUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    if (!mongoose.isValidObjectId(userId)) return res.status(400).json({ message: 'Invalid userId' });
+    if (!mongoose.isValidObjectId(userId))
+      return res.status(400).json({ message: "Invalid userId" });
 
-    const page = Math.max(parseInt(req.query.page || '1', 10), 1);
-    const limit = Math.min(Math.max(parseInt(req.query.limit || '10', 10), 1), 100);
+    const page = Math.max(parseInt(req.query.page || "1", 10), 1);
+    const limit = Math.min(
+      Math.max(parseInt(req.query.limit || "10", 10), 1),
+      100
+    );
     const skip = (page - 1) * limit;
 
     const [items, total] = await Promise.all([
-      LabTestResult.find({ user_id: userId }).sort({ uploaded_at: -1 }).skip(skip).limit(limit),
+      LabTestResult.find({ user_id: userId })
+        .sort({ uploaded_at: -1 })
+        .skip(skip)
+        .limit(limit),
       LabTestResult.countDocuments({ user_id: userId }),
     ]);
 
-    return res.json({ page, limit, total, pages: Math.ceil(total / limit), items });
+    return res.json({
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+      items,
+    });
   } catch (err) {
-    return res.status(500).json({ message: 'Failed to fetch by user', error: err.message });
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch by user", error: err.message });
   }
 };
 
@@ -168,10 +231,12 @@ exports.listByUser = async (req, res) => {
 exports.download = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid id' });
+    if (!mongoose.isValidObjectId(id))
+      return res.status(400).json({ message: "Invalid id" });
 
     const doc = await LabTestResult.findById(id);
-    if (!doc) return res.status(404).json({ message: 'Lab test result not found' });
+    if (!doc)
+      return res.status(404).json({ message: "Lab test result not found" });
 
     // If file_path is an absolute URL (S3, etc.), redirect to it
     if (doc.file_path && /^https?:\/\//i.test(doc.file_path)) {
@@ -179,22 +244,27 @@ exports.download = async (req, res) => {
     }
 
     // Resolve local file path
-    const relative = (doc.file_path || '').replace(/^\//, ''); // remove leading slash
-    const absPath = path.join(__dirname, '../../', relative);
+    const relative = (doc.file_path || "").replace(/^\//, ""); // remove leading slash
+    const absPath = path.join(__dirname, "../../", relative);
 
     if (!relative || !fs.existsSync(absPath)) {
-      return res.status(404).json({ message: 'File not found on server' });
+      return res.status(404).json({ message: "File not found on server" });
     }
 
     // Use a nice filename for the user
-    const base = (doc.testOrEvent_name || 'report').replace(/[^\w\-]+/g, '_');
-    const ext = path.extname(absPath) || '.pdf';
+    const base = (doc.testOrEvent_name || "report").replace(/[^\w\-]+/g, "_");
+    const ext = path.extname(absPath) || ".pdf";
     const downloadName = `${base}${ext}`;
 
-    res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${downloadName}"`
+    );
     return res.download(absPath, downloadName);
   } catch (err) {
-    return res.status(500).json({ message: 'Failed to download report', error: err.message });
+    return res
+      .status(500)
+      .json({ message: "Failed to download report", error: err.message });
   }
 };
 
@@ -202,22 +272,28 @@ exports.download = async (req, res) => {
 exports.bulkCreate = async (req, res) => {
   try {
     const docs = Array.isArray(req.body) ? req.body : [];
-    if (!docs.length) return res.status(400).json({ message: 'Provide an array of lab test results' });
+    if (!docs.length)
+      return res
+        .status(400)
+        .json({ message: "Provide an array of lab test results" });
 
     const inserted = await LabTestResult.insertMany(docs, { ordered: false });
 
     // 🔔 Optional: notify each uploaded report
     Promise.allSettled(
-      inserted.map(d => notifyLabResultReady({ lab_test_result_id: d._id }))
-    ).then(results => {
-      const failures = results.filter(r => r.status === 'rejected').length;
-      if (failures) console.error(`[bulk notifyLabResultReady] ${failures} failed`);
-    }).catch(() => {});
+      inserted.map((d) => notifyLabResultReady({ lab_test_result_id: d._id }))
+    )
+      .then((results) => {
+        const failures = results.filter((r) => r.status === "rejected").length;
+        if (failures)
+          console.error(`[bulk notifyLabResultReady] ${failures} failed`);
+      })
+      .catch(() => {});
 
     return res.status(201).json({ insertedCount: inserted.length, inserted });
   } catch (err) {
     return res.status(207).json({
-      message: 'Bulk insert completed with some errors',
+      message: "Bulk insert completed with some errors",
       error: err.message,
       writeErrors: err?.writeErrors?.map((w) => w.errmsg) || [],
     });

@@ -16,6 +16,17 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+api.interceptors.request.use(cfg => {
+  console.log("➡️", cfg.method?.toUpperCase(), cfg.baseURL + cfg.url);
+  console.log("📦", cfg.data);
+  return cfg;
+});
+api.interceptors.response.use(
+  res => { console.log("✅", res.status, res.data); return res; },
+  err => { console.log("🟥", err.response?.status, err.response?.data || err.message); return Promise.reject(err); }
+);
+
+
 
 
 export default api;

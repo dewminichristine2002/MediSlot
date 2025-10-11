@@ -38,18 +38,29 @@ const GOOGLE_MAPS_API_KEY =
   "YOUR_API_KEY";
 
 /* ---------- Small UI helpers ---------- */
-const Card = ({ children, style }) => <View style={[styles.card, style]}>{children}</View>;
+const Card = ({ children, style }) => (
+  <View style={[styles.card, style]}>{children}</View>
+);
 
 const GradientButton = ({ children, onPress, style }) => (
   <TouchableOpacity onPress={onPress} style={style} activeOpacity={0.9}>
-    <LinearGradient colors={THEME.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gradientBtn}>
+    <LinearGradient
+      colors={THEME.brand}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.gradientBtn}
+    >
       <Text style={styles.gradientBtnText}>{children}</Text>
     </LinearGradient>
   </TouchableOpacity>
 );
 
 const SoftButton = ({ children, onPress, style }) => (
-  <TouchableOpacity onPress={onPress} style={[styles.softBtn, style]} activeOpacity={0.9}>
+  <TouchableOpacity
+    onPress={onPress}
+    style={[styles.softBtn, style]}
+    activeOpacity={0.9}
+  >
     <Text style={styles.softBtnText}>{children}</Text>
   </TouchableOpacity>
 );
@@ -57,7 +68,11 @@ const SoftButton = ({ children, onPress, style }) => (
 /* ---------- Utils ---------- */
 function getLatLng(center) {
   const toNum = (v) =>
-    v === 0 || v === "0" ? 0 : v != null && v !== "" && !Number.isNaN(Number(v)) ? Number(v) : null;
+    v === 0 || v === "0"
+      ? 0
+      : v != null && v !== "" && !Number.isNaN(Number(v))
+      ? Number(v)
+      : null;
 
   const fromCoords = center?.coords
     ? { lat: toNum(center.coords.lat), lng: toNum(center.coords.lng) }
@@ -69,8 +84,12 @@ function getLatLng(center) {
       : null;
 
   const fromGeo =
-    Array.isArray(center?.location?.coordinates) && center.location.coordinates.length >= 2
-      ? { lat: toNum(center.location.coordinates[1]), lng: toNum(center.location.coordinates[0]) }
+    Array.isArray(center?.location?.coordinates) &&
+    center.location.coordinates.length >= 2
+      ? {
+          lat: toNum(center.location.coordinates[1]),
+          lng: toNum(center.location.coordinates[0]),
+        }
       : null;
 
   const lat = fromCoords?.lat ?? fromLL?.lat ?? fromGeo?.lat ?? null;
@@ -80,17 +99,30 @@ function getLatLng(center) {
 
 function decodePolyline(encoded) {
   let points = [];
-  let index = 0, lat = 0, lng = 0;
+  let index = 0,
+    lat = 0,
+    lng = 0;
 
   while (index < encoded.length) {
-    let b, shift = 0, result = 0;
-    do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
-    const dlat = (result & 1) ? ~(result >> 1) : (result >> 1);
+    let b,
+      shift = 0,
+      result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlat = result & 1 ? ~(result >> 1) : result >> 1;
     lat += dlat;
 
-    shift = 0; result = 0;
-    do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
-    const dlng = (result & 1) ? ~(result >> 1) : (result >> 1);
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlng = result & 1 ? ~(result >> 1) : result >> 1;
     lng += dlng;
 
     points.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
@@ -116,13 +148,24 @@ function RoutePreview({ center }) {
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") { setLoading(false); return; }
+        if (status !== "granted") {
+          setLoading(false);
+          return;
+        }
         const loc = await Location.getCurrentPositionAsync({});
-        const me = { latitude: Number(loc.coords.latitude), longitude: Number(loc.coords.longitude) };
+        const me = {
+          latitude: Number(loc.coords.latitude),
+          longitude: Number(loc.coords.longitude),
+        };
         setUserPos(me);
 
-        if (!centerLL || !GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === "YOUR_API_KEY") {
-          setLoading(false); return;
+        if (
+          !centerLL ||
+          !GOOGLE_MAPS_API_KEY ||
+          GOOGLE_MAPS_API_KEY === "YOUR_API_KEY"
+        ) {
+          setLoading(false);
+          return;
         }
 
         const origin = `${me.latitude},${me.longitude}`;
@@ -168,21 +211,30 @@ function RoutePreview({ center }) {
           <Marker coordinate={centerLL} title={center?.name} />
           {userPos ? <Marker coordinate={userPos} title="You" /> : null}
           {routeCoords.length > 0 ? (
-            <Polyline coordinates={routeCoords} strokeWidth={5} strokeColor="#2563EB" />
+            <Polyline
+              coordinates={routeCoords}
+              strokeWidth={5}
+              strokeColor="#2563EB"
+            />
           ) : null}
         </MapView>
       </View>
 
-      <View style={{ padding: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: THEME.line }}>
+      <View
+        style={{
+          padding: 12,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: THEME.line,
+        }}
+      >
         {loading ? (
           <ActivityIndicator />
         ) : distanceText || durationText ? (
           <Text style={{ color: THEME.subtext }}>
-            Estimated: {distanceText ? `${distanceText}` : ""} {durationText ? `• ${durationText}` : ""}
+            Estimated: {distanceText ? `${distanceText}` : ""}{" "}
+            {durationText ? `• ${durationText}` : ""}
           </Text>
-        ) : (
-          <Text style={{ color: THEME.subtext }}>Route preview unavailable.</Text>
-        )}
+        ) : null}
       </View>
     </Card>
   );
@@ -214,10 +266,17 @@ export default function CenterDetailsScreen({ route, navigation }) {
   const openExternalDirections = async () => {
     const ll = getLatLng(center);
     const addr = formatAddress(center.address)?.trim();
-    const dest = ll ? `${ll.lat},${ll.lng}` : (addr ? encodeURIComponent(addr) : "");
+    const dest = ll
+      ? `${ll.lat},${ll.lng}`
+      : addr
+      ? encodeURIComponent(addr)
+      : "";
 
     if (!dest) {
-      Alert.alert("Location unavailable", "This center has no coordinates or searchable address.");
+      Alert.alert(
+        "Location unavailable",
+        "This center has no coordinates or searchable address."
+      );
       return;
     }
 
@@ -225,14 +284,20 @@ export default function CenterDetailsScreen({ route, navigation }) {
       if (Platform.OS === "ios") {
         const hasGoogleApp = await Linking.canOpenURL("comgooglemaps://");
         if (hasGoogleApp) {
-          return Linking.openURL(`comgooglemaps://?saddr=&daddr=${dest}&directionsmode=driving`);
+          return Linking.openURL(
+            `comgooglemaps://?saddr=&daddr=${dest}&directionsmode=driving`
+          );
         }
         // Fallback to Google Maps on the web
-        return Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`);
+        return Linking.openURL(
+          `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`
+        );
       }
 
       // Android
-      return Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`);
+      return Linking.openURL(
+        `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`
+      );
     } catch (e) {
       Alert.alert("Couldn't open Google Maps", e?.message || "Unknown error.");
     }
@@ -242,7 +307,11 @@ export default function CenterDetailsScreen({ route, navigation }) {
     <View style={styles.testRow}>
       <View style={{ flex: 1 }}>
         <Text style={styles.testName}>{item.name}</Text>
-        {item.what ? <Text style={styles.testSub} numberOfLines={2}>{item.what}</Text> : null}
+        {item.what ? (
+          <Text style={styles.testSub} numberOfLines={2}>
+            {item.what}
+          </Text>
+        ) : null}
         <View style={styles.actionRow}>
           <SoftButton
             style={{ flex: 1 }}
@@ -257,14 +326,18 @@ export default function CenterDetailsScreen({ route, navigation }) {
           </SoftButton>
           <SoftButton
             style={{ flex: 1 }}
-            onPress={() => navigation.navigate("TestDetails", { test: item, center })}
+            onPress={() =>
+              navigation.navigate("TestDetails", { test: item, center })
+            }
           >
             More Details
           </SoftButton>
         </View>
       </View>
       <View style={{ marginLeft: 10, alignItems: "flex-end" }}>
-        {item.price != null ? <Text style={styles.testPrice}>Rs. {item.price}</Text> : null}
+        {item.price != null ? (
+          <Text style={styles.testPrice}>Rs. {item.price}</Text>
+        ) : null}
       </View>
     </View>
   );
@@ -272,7 +345,12 @@ export default function CenterDetailsScreen({ route, navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: THEME.bg }}>
       {/* Header */}
-      <LinearGradient colors={THEME.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
+      <LinearGradient
+        colors={THEME.brand}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <Text style={styles.headerTitle}>Center Details</Text>
         <Text style={styles.headerSub}>{center.name}</Text>
       </LinearGradient>
@@ -295,10 +373,17 @@ export default function CenterDetailsScreen({ route, navigation }) {
         <Card>
           <Text style={styles.centerTitle}>{center.name}</Text>
           <Text style={styles.centerSub}>{formatAddress(center.address)}</Text>
-          {center.phone ? <Text style={[styles.centerSub, { marginTop: 2 }]}>{center.phone}</Text> : null}
+          {center.phone ? (
+            <Text style={[styles.centerSub, { marginTop: 2 }]}>
+              {center.phone}
+            </Text>
+          ) : null}
 
           <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
-            <GradientButton onPress={openExternalDirections} style={{ flex: 1 }}>
+            <GradientButton
+              onPress={openExternalDirections}
+              style={{ flex: 1 }}
+            >
               Directions
             </GradientButton>
           </View>
@@ -313,7 +398,9 @@ export default function CenterDetailsScreen({ route, navigation }) {
           {loading ? (
             <ActivityIndicator size="large" />
           ) : tests.length === 0 ? (
-            <Text style={{ color: THEME.subtext }}>No tests published for this center.</Text>
+            <Text style={{ color: THEME.subtext }}>
+              No tests published for this center.
+            </Text>
           ) : (
             <FlatList
               data={tests}
@@ -340,8 +427,18 @@ const styles = StyleSheet.create({
   headerSub: { color: "#E6F6FF", marginTop: 4 },
 
   backRow: { paddingHorizontal: 10, paddingTop: 8 },
-  backIconBtn: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 2 },
-  backText: { color: THEME.brand[0], fontWeight: "800", fontSize: 14, marginLeft: 2 },
+  backIconBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 2,
+  },
+  backText: {
+    color: THEME.brand[0],
+    fontWeight: "800",
+    fontSize: 14,
+    marginLeft: 2,
+  },
 
   card: {
     backgroundColor: THEME.card,
@@ -377,7 +474,12 @@ const styles = StyleSheet.create({
 
   actionRow: { flexDirection: "row", gap: 10, marginTop: 10 },
 
-  gradientBtn: { borderRadius: 14, paddingVertical: 12, paddingHorizontal: 16, alignItems: "center" },
+  gradientBtn: {
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: "center",
+  },
   gradientBtnText: { color: "#fff", fontWeight: "800", textAlign: "center" },
 
   softBtn: {

@@ -189,17 +189,15 @@ export default function ProfileScreen({ route }) {
               icon="clipboard-outline"
               active={false}
               label="My Bookings"
-              onPress={() => {
-                // handle navigation or toggle
-              }}
+              onPress={() => navigation.navigate("HomeTab", { screen: "BookingHistory" })}
             />
             <SegmentButton
               icon="checkmark-done-outline"
               active={false}
               label="My Check List"
-              onPress={() => {
+              onPress={() => { 
                 // handle navigation or toggle
-              }}
+                 }}
             />
           </View>
         </View>

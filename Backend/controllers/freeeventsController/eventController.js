@@ -1,7 +1,7 @@
 // controllers/eventController.js
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 //const Event = require('../models/Event');
-const Event = require('../../models/Event');
+const Event = require("../../models/Event");
 
 // Helper: build filters from query
 function buildFilters(query) {
@@ -22,9 +22,9 @@ function buildFilters(query) {
 // Helper: sort mapping
 function buildSort(query) {
   // ?sort=date|name|created_at  & order=asc|desc
-  const allowed = new Set(['date', 'name', 'created_at', 'updated_at']);
-  const sortField = allowed.has(query.sort) ? query.sort : 'date';
-  const direction = query.order === 'desc' ? -1 : 1;
+  const allowed = new Set(["date", "name", "created_at", "updated_at"]);
+  const sortField = allowed.has(query.sort) ? query.sort : "date";
+  const direction = query.order === "desc" ? -1 : 1;
   return { [sortField]: direction };
 }
 
@@ -36,44 +36,52 @@ exports.createEvent = async (req, res) => {
     // Optional guard: slots_filled must not exceed slots_total
     if (payload.slots_filled && payload.slots_total != null) {
       if (payload.slots_filled > payload.slots_total) {
-        return res.status(400).json({ message: 'slots_filled cannot exceed slots_total' });
+        return res
+          .status(400)
+          .json({ message: "slots_filled cannot exceed slots_total" });
       }
     }
 
     const event = await Event.create(payload);
     return res.status(201).json(event);
   } catch (err) {
-    console.error('createEvent error:', err);
-    return res.status(400).json({ message: 'Failed to create event', error: err.message });
+    console.error("createEvent error:", err);
+    return res
+      .status(400)
+      .json({ message: "Failed to create event", error: err.message });
   }
 };
 
 // GET /api/events
-// Supports: pagination, text search, date range, sorting
+// Shows ALL events (no pagination)
 exports.getEvents = async (req, res) => {
   try {
-    const page = Math.max(parseInt(req.query.page || '1', 10), 1);
-    const limit = Math.min(Math.max(parseInt(req.query.limit || '10', 10), 1), 100);
-    const skip = (page - 1) * limit;
-
     const filters = buildFilters(req.query);
     const sort = buildSort(req.query);
 
-    const [items, total] = await Promise.all([
-      Event.find(filters).sort(sort).skip(skip).limit(limit),
-      Event.countDocuments(filters),
-    ]);
+    // Fetch all events (no skip, no limit)
+    const events = await Event.find(filters).sort(sort).lean();
+    const total = events.length;
+
+    // Add derived fields for UI
+    const items = events.map((event) => ({
+      ...event,
+      slots_remaining: Math.max(
+        0,
+        (event.slots_total || 0) - (event.slots_filled || 0)
+      ),
+      attended_count: event.attended_count || 0,
+    }));
 
     return res.json({
-      page,
-      limit,
       total,
-      pages: Math.ceil(total / limit),
       items,
     });
   } catch (err) {
-    console.error('getEvents error:', err);
-    return res.status(500).json({ message: 'Failed to fetch events', error: err.message });
+    console.error("getEvents error:", err);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch events", error: err.message });
   }
 };
 
@@ -82,50 +90,66 @@ exports.getEventById = async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ message: 'Invalid id' });
+      return res.status(400).json({ message: "Invalid id" });
     }
 
     // lean() so we can spread a plain object
     const event = await Event.findById(id).lean();
-    if (!event) return res.status(404).json({ message: 'Event not found' });
+    if (!event) return res.status(404).json({ message: "Event not found" });
 
-    const slots_remaining = Math.max(0, (event.slots_total || 0) - (event.slots_filled || 0));
+    const slots_remaining = Math.max(
+      0,
+      (event.slots_total || 0) - (event.slots_filled || 0)
+    );
 
     return res.json({ ...event, slots_remaining });
   } catch (err) {
-    console.error('getEventById error:', err);
-    return res.status(500).json({ message: 'Failed to fetch event', error: err.message });
+    console.error("getEventById error:", err);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch event", error: err.message });
   }
 };
-
 
 // PATCH /api/events/:id
 exports.updateEvent = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid id' });
+    if (!mongoose.isValidObjectId(id))
+      return res.status(400).json({ message: "Invalid id" });
 
     const update = req.body;
 
     // Guard: do not allow slots_filled > slots_total
     if (update.slots_total != null || update.slots_filled != null) {
       const current = await Event.findById(id).lean();
-      if (!current) return res.status(404).json({ message: 'Event not found' });
+      if (!current) return res.status(404).json({ message: "Event not found" });
 
-      const nextTotal = update.slots_total != null ? update.slots_total : current.slots_total;
-      const nextFilled = update.slots_filled != null ? update.slots_filled : current.slots_filled;
+      const nextTotal =
+        update.slots_total != null ? update.slots_total : current.slots_total;
+      const nextFilled =
+        update.slots_filled != null
+          ? update.slots_filled
+          : current.slots_filled;
       if (nextFilled > nextTotal) {
-        return res.status(400).json({ message: 'slots_filled cannot exceed slots_total' });
+        return res
+          .status(400)
+          .json({ message: "slots_filled cannot exceed slots_total" });
       }
     }
 
-    const event = await Event.findByIdAndUpdate(id, update, { new: true, runValidators: true });
-    if (!event) return res.status(404).json({ message: 'Event not found' });
+    const event = await Event.findByIdAndUpdate(id, update, {
+      new: true,
+      runValidators: true,
+    });
+    if (!event) return res.status(404).json({ message: "Event not found" });
 
     return res.json(event);
   } catch (err) {
-    console.error('updateEvent error:', err);
-    return res.status(400).json({ message: 'Failed to update event', error: err.message });
+    console.error("updateEvent error:", err);
+    return res
+      .status(400)
+      .json({ message: "Failed to update event", error: err.message });
   }
 };
 
@@ -133,15 +157,18 @@ exports.updateEvent = async (req, res) => {
 exports.deleteEvent = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid id' });
+    if (!mongoose.isValidObjectId(id))
+      return res.status(400).json({ message: "Invalid id" });
 
     const deleted = await Event.findByIdAndDelete(id);
-    if (!deleted) return res.status(404).json({ message: 'Event not found' });
+    if (!deleted) return res.status(404).json({ message: "Event not found" });
 
-    return res.json({ message: 'Event deleted' });
+    return res.json({ message: "Event deleted" });
   } catch (err) {
-    console.error('deleteEvent error:', err);
-    return res.status(500).json({ message: 'Failed to delete event', error: err.message });
+    console.error("deleteEvent error:", err);
+    return res
+      .status(500)
+      .json({ message: "Failed to delete event", error: err.message });
   }
 };
 
@@ -194,15 +221,19 @@ exports.deleteEvent = async (req, res) => {
 // GET /api/events/upcoming  (next N days)
 exports.getUpcoming = async (req, res) => {
   try {
-    const days = Math.max(parseInt(req.query.days || '30', 10), 1);
+    const days = Math.max(parseInt(req.query.days || "30", 10), 1);
     const now = new Date();
     const until = new Date(now);
     until.setDate(until.getDate() + days);
 
-    const items = await Event.find({ date: { $gte: now, $lte: until } }).sort({ date: 1 });
+    const items = await Event.find({ date: { $gte: now, $lte: until } }).sort({
+      date: 1,
+    });
     return res.json(items);
   } catch (err) {
-    console.error('getUpcoming error:', err);
-    return res.status(500).json({ message: 'Failed to fetch upcoming events', error: err.message });
+    console.error("getUpcoming error:", err);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch upcoming events", error: err.message });
   }
 };
