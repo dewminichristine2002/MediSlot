@@ -1,12 +1,10 @@
-const mongoose = require("mongoose");
-const LabTestResult = require("../../models/LabTestResult");
-const fs = require("fs");
-const path = require("path");
+const mongoose = require('mongoose');
+const LabTestResult = require('../../models/LabTestResult');
+const { notifyLabResultReady } = require('./eventLabNotificationController');
 
-// ⬇️ Import the notifier (same folder)
-const { notifyLabResultReady } = require("./eventLabNotificationController");
-
-// Build filters for list endpoint
+/* --------------------------------------------------------
+   🧩 Helper: Build dynamic filters
+-------------------------------------------------------- */
 function buildFilters(q) {
   const f = {};
   if (q.user_id && mongoose.isValidObjectId(q.user_id)) f.user_id = q.user_id;
@@ -19,15 +17,16 @@ function buildFilters(q) {
   return f;
 }
 
-// POST /api/lab-tests  (supports multipart form-data via multer.single('file'))
-// POST /api/lab-tests  (supports multipart form-data via multer.single('file'))
+/* --------------------------------------------------------
+   🧾 CREATE (POST /api/lab-tests)
+-------------------------------------------------------- */
 exports.create = async (req, res) => {
   try {
     const body = { ...req.body };
 
-    if (req.file) {
-      // Stored as an API-relative path so frontend can make absolute with base URL
-      body.file_path = `/uploads/reports/${req.file.filename}`;
+    // ✅ Cloudinary automatically gives the correct file path
+    if (req.file && req.file.path) {
+      body.file_path = req.file.path;
     }
 
     if (!body.user_id || !mongoose.isValidObjectId(body.user_id)) {
@@ -37,9 +36,18 @@ exports.create = async (req, res) => {
       return res.status(400).json({ message: "testOrEvent_name is required" });
     }
     if (!body.file_path) {
-      return res.status(400).json({
-        message: "file is required (multipart) or file_path must be provided",
-      });
+      return res.status(400).json({ message: 'File is required' });
+    }
+
+    // 🧩 Prevent duplicate uploads for same test + user
+    const existing = await LabTestResult.findOne({
+      user_id: body.user_id,
+      testOrEvent_name: body.testOrEvent_name,
+    });
+    if (existing) {
+      return res
+        .status(400)
+        .json({ message: 'A report for this user and test already exists.' });
     }
 
     // 🚫 Check if this user already has a report uploaded for this event/test
@@ -57,14 +65,14 @@ exports.create = async (req, res) => {
     // ✅ Proceed to create
     const doc = await LabTestResult.create(body);
 
-    // 🔔 Fire notification asynchronously
+    // 🔔 Fire async notification (non-blocking)
     notifyLabResultReady({ lab_test_result_id: doc._id }).catch((err) =>
-      console.error("[notifyLabResultReady] failed:", err.message)
+      console.error('[notifyLabResultReady] failed:', err.message)
     );
 
     return res.status(201).json(doc);
   } catch (err) {
-    console.error("Create lab test error:", err);
+    console.error('❌ Create lab test result error:', err);
     return res
       .status(400)
       .json({
@@ -74,7 +82,9 @@ exports.create = async (req, res) => {
   }
 };
 
-// GET /api/lab-tests
+/* --------------------------------------------------------
+   🧾 LIST (GET /api/lab-tests)
+-------------------------------------------------------- */
 exports.list = async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page || "1", 10), 1);
@@ -85,12 +95,9 @@ exports.list = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const filters = buildFilters(req.query);
-
-    const allowed = new Set(["uploaded_at", "testOrEvent_name"]);
-    const sortField = allowed.has(req.query.sort)
-      ? req.query.sort
-      : "uploaded_at";
-    const sortOrder = req.query.order === "asc" ? 1 : -1;
+    const allowed = new Set(['uploaded_at', 'testOrEvent_name']);
+    const sortField = allowed.has(req.query.sort) ? req.query.sort : 'uploaded_at';
+    const sortOrder = req.query.order === 'asc' ? 1 : -1;
 
     const [items, total] = await Promise.all([
       LabTestResult.find(filters)
@@ -108,6 +115,7 @@ exports.list = async (req, res) => {
       items,
     });
   } catch (err) {
+    console.error('❌ List lab tests error:', err);
     return res
       .status(500)
       .json({
@@ -117,49 +125,50 @@ exports.list = async (req, res) => {
   }
 };
 
-// GET /api/lab-tests/:id
+/* --------------------------------------------------------
+   🧾 GET BY ID (GET /api/lab-tests/:id)
+-------------------------------------------------------- */
 exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id))
-      return res.status(400).json({ message: "Invalid id" });
+      return res.status(400).json({ message: 'Invalid ID' });
 
     const doc = await LabTestResult.findById(id);
     if (!doc)
       return res.status(404).json({ message: "Lab test result not found" });
     return res.json(doc);
   } catch (err) {
+    console.error('❌ Get by ID error:', err);
     return res
       .status(500)
       .json({ message: "Failed to fetch lab test result", error: err.message });
   }
 };
 
-// PATCH /api/lab-tests/:id  (supports multipart form-data to replace file)
+/* --------------------------------------------------------
+   🧾 UPDATE (PATCH /api/lab-tests/:id)
+-------------------------------------------------------- */
 exports.update = async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id))
-      return res.status(400).json({ message: "Invalid id" });
+      return res.status(400).json({ message: 'Invalid ID' });
 
     const update = { ...req.body };
-    if (req.file) {
-      update.file_path = `/uploads/reports/${req.file.filename}`;
-    }
-
-    if (Object.keys(update).length === 0) {
-      return res.status(400).json({ message: "No fields to update" });
+    if (req.file && req.file.path) {
+      update.file_path = req.file.path;
     }
 
     const doc = await LabTestResult.findByIdAndUpdate(id, update, {
       new: true,
       runValidators: true,
     });
-    if (!doc)
-      return res.status(404).json({ message: "Lab test result not found" });
 
+    if (!doc) return res.status(404).json({ message: 'Lab test result not found' });
     return res.json(doc);
   } catch (err) {
+    console.error('❌ Update lab test result error:', err);
     return res
       .status(400)
       .json({
@@ -169,19 +178,22 @@ exports.update = async (req, res) => {
   }
 };
 
-// DELETE /api/lab-tests/:id
+/* --------------------------------------------------------
+   🧾 DELETE (DELETE /api/lab-tests/:id)
+-------------------------------------------------------- */
 exports.remove = async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id))
-      return res.status(400).json({ message: "Invalid id" });
+      return res.status(400).json({ message: 'Invalid ID' });
 
     const del = await LabTestResult.findByIdAndDelete(id);
     if (!del)
       return res.status(404).json({ message: "Lab test result not found" });
 
-    return res.json({ message: "Lab test result deleted" });
+    return res.json({ message: 'Lab test result deleted successfully' });
   } catch (err) {
+    console.error('❌ Delete lab test result error:', err);
     return res
       .status(500)
       .json({
@@ -191,12 +203,14 @@ exports.remove = async (req, res) => {
   }
 };
 
-// GET /api/lab-tests/user/:userId (latest first)
+/* --------------------------------------------------------
+   🧾 LIST BY USER (GET /api/lab-tests/user/:userId)
+-------------------------------------------------------- */
 exports.listByUser = async (req, res) => {
   try {
     const { userId } = req.params;
     if (!mongoose.isValidObjectId(userId))
-      return res.status(400).json({ message: "Invalid userId" });
+      return res.status(400).json({ message: 'Invalid userId' });
 
     const page = Math.max(parseInt(req.query.page || "1", 10), 1);
     const limit = Math.min(
@@ -221,77 +235,65 @@ exports.listByUser = async (req, res) => {
       items,
     });
   } catch (err) {
+    console.error('❌ List by user error:', err);
     return res
       .status(500)
-      .json({ message: "Failed to fetch by user", error: err.message });
+      .json({ message: 'Failed to fetch lab tests by user', error: err.message });
   }
 };
 
-// GET /api/lab-tests/:id/download  (force download or redirect if remote URL)
+/* --------------------------------------------------------
+   🧾 DOWNLOAD (GET /api/lab-tests/:id/download)
+-------------------------------------------------------- */
 exports.download = async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id))
-      return res.status(400).json({ message: "Invalid id" });
+      return res.status(400).json({ message: 'Invalid ID' });
 
     const doc = await LabTestResult.findById(id);
     if (!doc)
       return res.status(404).json({ message: "Lab test result not found" });
 
-    // If file_path is an absolute URL (S3, etc.), redirect to it
+    // Redirect to Cloudinary-hosted file (works for PDFs & images)
     if (doc.file_path && /^https?:\/\//i.test(doc.file_path)) {
       return res.redirect(doc.file_path);
     }
 
-    // Resolve local file path
-    const relative = (doc.file_path || "").replace(/^\//, ""); // remove leading slash
-    const absPath = path.join(__dirname, "../../", relative);
-
-    if (!relative || !fs.existsSync(absPath)) {
-      return res.status(404).json({ message: "File not found on server" });
-    }
-
-    // Use a nice filename for the user
-    const base = (doc.testOrEvent_name || "report").replace(/[^\w\-]+/g, "_");
-    const ext = path.extname(absPath) || ".pdf";
-    const downloadName = `${base}${ext}`;
-
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${downloadName}"`
-    );
-    return res.download(absPath, downloadName);
+    return res.status(404).json({ message: 'File not found on Cloudinary' });
   } catch (err) {
+    console.error('❌ Download lab test error:', err);
     return res
       .status(500)
-      .json({ message: "Failed to download report", error: err.message });
+      .json({ message: 'Failed to download lab test result', error: err.message });
   }
 };
 
-// Optional: POST /api/lab-tests/bulk
+/* --------------------------------------------------------
+   🧾 BULK CREATE (POST /api/lab-tests/bulk)
+-------------------------------------------------------- */
 exports.bulkCreate = async (req, res) => {
   try {
     const docs = Array.isArray(req.body) ? req.body : [];
     if (!docs.length)
-      return res
-        .status(400)
-        .json({ message: "Provide an array of lab test results" });
+      return res.status(400).json({ message: 'Provide an array of lab test results' });
 
     const inserted = await LabTestResult.insertMany(docs, { ordered: false });
 
-    // 🔔 Optional: notify each uploaded report
     Promise.allSettled(
       inserted.map((d) => notifyLabResultReady({ lab_test_result_id: d._id }))
-    )
-      .then((results) => {
-        const failures = results.filter((r) => r.status === "rejected").length;
-        if (failures)
-          console.error(`[bulk notifyLabResultReady] ${failures} failed`);
-      })
-      .catch(() => {});
+    ).then((results) => {
+      const failures = results.filter((r) => r.status === 'rejected').length;
+      if (failures)
+        console.error(`[bulk notifyLabResultReady] ${failures} notifications failed`);
+    });
 
-    return res.status(201).json({ insertedCount: inserted.length, inserted });
+    return res.status(201).json({
+      insertedCount: inserted.length,
+      inserted,
+    });
   } catch (err) {
+    console.error('❌ Bulk create lab test error:', err);
     return res.status(207).json({
       message: "Bulk insert completed with some errors",
       error: err.message,

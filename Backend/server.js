@@ -86,6 +86,9 @@ app.use('/api/event-registrations', require('./routes/freeEventsRoutes/eventRegi
 app.use('/api/lab-tests', require('./routes/freeEventsRoutes/labTestResultRoutes'));
 app.use("/api/labtests", require("./routes/LabTests/labTestRoutes"));
 app.use('/api/eventLabNotifications', require('./routes/freeEventsRoutes/eventLabNotificationRoutes'));
+app.use('/api/healthcenters', require('./routes/centers.routes'));
+
+
 
 // Users, Bookings, Payments, Browse
 app.use("/api/users", require("./routes/userRoutes"));

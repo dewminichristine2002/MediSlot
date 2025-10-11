@@ -184,3 +184,33 @@ exports.updateCenter = async (req, res) => {
     res.status(400).json({ error: e.message });
   }
 };
+
+// ✅ GET /api/centers/names
+exports.getHealthCenterNames = async (req, res) => {
+  try {
+    const centers = await HealthCenter.find(
+      { isActive: true },
+      {
+        _id: 1,
+        name: 1,
+        "address.city": 1,
+        "address.district": 1,
+        "address.province": 1,
+      }
+    ).sort({ name: 1 });
+
+    // Optional: skip nulls, clean format
+    const formatted = centers.map((c) => ({
+      _id: c._id,
+      name: c.name,
+      city: c.address?.city || "",
+      district: c.address?.district || "",
+      province: c.address?.province || "",
+    }));
+
+    res.json(formatted);
+  } catch (err) {
+    console.error("getHealthCenterNames error:", err);
+    res.status(500).json({ message: "Failed to fetch health centers" });
+  }
+};

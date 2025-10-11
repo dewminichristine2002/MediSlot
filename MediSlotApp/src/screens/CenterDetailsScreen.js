@@ -1,21 +1,16 @@
 // src/screens/CenterDetailsScreen.js
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Linking,
   ActivityIndicator,
-  Platform,
   Alert,
   ScrollView,
 } from "react-native";
-import MapView, { Marker, Polyline } from "react-native-maps";
-import * as Location from "expo-location";
-import Constants from "expo-constants";
-import axios from "axios";
+import MapView, { Marker } from "react-native-maps";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -127,7 +122,7 @@ function decodePolyline(encoded) {
 
     points.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
   }
-  return points;
+  return null;
 }
 
 /* ---------- Route preview ---------- */
@@ -242,20 +237,30 @@ function RoutePreview({ center }) {
 
 /* ---------- Screen ---------- */
 export default function CenterDetailsScreen({ route, navigation }) {
-  const { center } = route.params;
+  const center = route?.params?.center;
   const { token } = useAuth();
+
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // fail fast if route missing
   useEffect(() => {
-    navigation.setOptions({ headerShown: false, headerBackVisible: false });
-  }, [navigation]);
+    navigation.setOptions({ headerShown: false });
+    if (!center) {
+      Alert.alert("Center not found", "No center data was provided.");
+      navigation.goBack();
+    }
+  }, [navigation, center]);
 
+  // load tests for this center
   useEffect(() => {
+    if (!center?._id) return;
     (async () => {
       try {
         const data = await fetchCenterTests(center._id, token);
         setTests(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.log("fetchCenterTests error:", e?.message || e);
       } finally {
         setLoading(false);
       }
@@ -313,8 +318,8 @@ export default function CenterDetailsScreen({ route, navigation }) {
           </Text>
         ) : null}
         <View style={styles.actionRow}>
-          <SoftButton
-            style={{ flex: 1 }}
+          <TouchableOpacity
+            style={[styles.softBtn, { flex: 1 }]}
             onPress={() =>
               navigation.navigate("NewBooking", {
                 centerId: center._id,
@@ -330,10 +335,11 @@ export default function CenterDetailsScreen({ route, navigation }) {
               navigation.navigate("TestDetails", { test: item, center })
             }
           >
-            More Details
-          </SoftButton>
+            <Text style={styles.softBtnText}>More Details</Text>
+          </TouchableOpacity>
         </View>
       </View>
+
       <View style={{ marginLeft: 10, alignItems: "flex-end" }}>
         {item.price != null ? (
           <Text style={styles.testPrice}>Rs. {item.price}</Text>
@@ -352,10 +358,10 @@ export default function CenterDetailsScreen({ route, navigation }) {
         style={styles.header}
       >
         <Text style={styles.headerTitle}>Center Details</Text>
-        <Text style={styles.headerSub}>{center.name}</Text>
+        <Text style={styles.headerSub}>{center?.name ?? ""}</Text>
       </LinearGradient>
 
-      {/* Back row */}
+      {/* Back */}
       <View style={styles.backRow}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -387,13 +393,10 @@ export default function CenterDetailsScreen({ route, navigation }) {
               Directions
             </GradientButton>
           </View>
-        </Card>
-
-        {/* Route preview */}
-        <RoutePreview center={center} />
+        ) : null}
 
         {/* Tests */}
-        <Card>
+        <View style={styles.card}>
           <Text style={styles.sectionTitle}>Available Tests</Text>
           {loading ? (
             <ActivityIndicator size="large" />
@@ -410,7 +413,7 @@ export default function CenterDetailsScreen({ route, navigation }) {
               ItemSeparatorComponent={() => <View style={styles.separator} />}
             />
           )}
-        </Card>
+        </View>
       </ScrollView>
     </View>
   );

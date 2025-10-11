@@ -85,6 +85,7 @@ exports.getEvents = async (req, res) => {
   }
 };
 
+
 // GET /api/events/:id
 exports.getEventById = async (req, res) => {
   try {
