@@ -41,9 +41,6 @@ app.use("/api/user-checklists", require("./routes/LabTests/userChecklistRoutes")
 // Keep ONE tests route. If you want the generic tests CRUD, use this:
 app.use("/api/tests", require("./routes/tests.routes"));
 
-// If you actually need LabTests-specific endpoints (different from above),
-// keep this but give it a DIFFERENT base path to avoid collision, e.g.:
-// app.use("/api/lab-tests-meta", require("./routes/LabTests/labTestRoutes"));
 
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/centers", require("./routes/centers.routes"));

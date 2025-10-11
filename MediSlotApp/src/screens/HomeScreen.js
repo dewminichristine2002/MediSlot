@@ -289,6 +289,12 @@ if (user && isAdmin) {
         </View>
       </LinearGradient>
 
+      
+    <Animated.ScrollView
+      contentContainerStyle={{ paddingBottom: 80 }}
+      showsVerticalScrollIndicator={false}
+    >
+
       {/* Vitals banner */}
       <Animated.View style={{ opacity: fade, transform: [{ translateY: slideY }] }}>
         <VitalsBanner />
@@ -372,6 +378,7 @@ if (user && isAdmin) {
           </View>
         </Animated.View>
       )}
+    </Animated.ScrollView>
     </View>
   );
 }

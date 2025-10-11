@@ -16,6 +16,7 @@ const Localized = new Schema(
     name: String,
     what: String,
     why: String,
+    category: String,
     preparation: [String],
     during: [String],
     after: [String],
