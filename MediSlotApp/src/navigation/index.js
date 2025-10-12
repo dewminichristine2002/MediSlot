@@ -28,8 +28,6 @@ import AdminScanScreen from '../screens/AdminScanScreen';
 import TestCategoriesScreen from '../screens/Guidelines/TestCategoriesScreen';
 import TestListScreen from '../screens/Guidelines/TestListScreen';
 import TestDetailsScreen from '../screens/Guidelines/TestDetailsScreen';
-import HealthAwarenessListScreen from "../screens/HealthAwarenessListScreen";
-import HealthAwarenessDetailScreen from "../screens/HealthAwarenessDetailScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();

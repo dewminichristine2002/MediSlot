@@ -1,0 +1,246 @@
+import React, { useEffect, useState } from "react";
+import {
+  FaFlask,
+  FaChevronDown,
+  FaChevronUp,
+  FaTrash,
+  FaClinicMedical,
+  FaMapMarkerAlt,
+  FaPhoneAlt,
+  FaEnvelope,
+  FaSearch,
+  FaFilter,
+  FaUserMd,
+  FaCalendarCheck,
+  FaStethoscope
+} from "react-icons/fa";
+import { api } from "../api";
+import "../styles/centers.css";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
+
+export default function CentersPage() {
+  const [centers, setCenters] = useState([]);
+  const [filtered, setFiltered] = useState([]);
+  const [expanded, setExpanded] = useState(null);
+  const [tests, setTests] = useState({});
+  const [msg, setMsg] = useState("");
+  const [search, setSearch] = useState("");
+  const [province, setProvince] = useState("All");
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadCenters = async () => {
+    try {
+      setIsLoading(true);
+      const { data } = await api.get("/centers");
+      setCenters(data);
+      setFiltered(data);
+      setMsg("");
+    } catch (err) {
+      console.error("❌ Failed to load centers:", err);
+      setMsg("⚠️ Failed to load centers");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCenters();
+  }, []);
+
+  useEffect(() => {
+    let result = centers;
+    if (search.trim()) {
+      result = result.filter((c) =>
+        c.name.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+    if (province !== "All") {
+      result = result.filter((c) => c.address?.province === province);
+    }
+    setFiltered(result);
+  }, [search, province, centers]);
+
+  const toggleExpand = async (id) => {
+    if (expanded === id) return setExpanded(null);
+    setExpanded(id);
+    if (!tests[id]) {
+      try {
+        const { data } = await api.get(`/centers/${id}/tests`);
+        setTests((prev) => ({ ...prev, [id]: data }));
+      } catch {
+        alert("Failed to load test details");
+      }
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this center?")) return;
+    try {
+      await api.delete(`/centers/${id}`);
+      alert("✅ Center deleted successfully!");
+      loadCenters();
+    } catch {
+      alert("❌ Delete failed");
+    }
+  };
+
+  const provinces = [
+    "All",
+    "Western",
+    "Central",
+    "Southern",
+    "Northern",
+    "Eastern",
+    "Sabaragamuwa",
+    "North Western",
+    "North Central",
+    "Uva",
+  ];
+
+  const stats = [
+    {
+      label: "Total Centers",
+      value: centers.length,
+      icon: <FaClinicMedical className="text-blue-500" size={24} />
+    },
+    {
+      label: "Active Services",
+      value: centers.reduce((acc, c) => acc + (tests[c._id]?.length || 0), 0),
+      icon: <FaStethoscope className="text-green-500" size={24} />
+    },
+    {
+      label: "Provinces Covered",
+      value: new Set(centers.map(c => c.address?.province).filter(Boolean)).size,
+      icon: <FaMapMarkerAlt className="text-red-500" size={24} />
+    }
+  ];
+
+  return (
+    <div className="centers-page">
+      {/* Search and Filters */}
+      <div className="search-section">
+        <div className="search-bar">
+          <FaSearch className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search centers by name..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <select
+          value={province}
+          onChange={(e) => setProvince(e.target.value)}
+          className="btn btn-secondary"
+        >
+          {provinces.map((p) => (
+            <option key={p}>{p}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="stats-grid">
+        {stats.map((stat, index) => (
+          <div key={index} className="stat-card">
+            {stat.icon}
+            <div className="stat-value">{stat.value}</div>
+            <div className="stat-label">{stat.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Error Message */}
+      {msg && (
+        <div className="bg-red-100 text-red-700 text-center py-3 rounded-xl font-semibold shadow-md mb-6">
+          {msg}
+        </div>
+      )}
+
+      {/* Centers Grid */}
+      <div className="centers-grid">
+        {isLoading ? (
+          // Loading skeleton
+          Array(6).fill().map((_, i) => (
+            <div key={i} className="center-card">
+              <div className="center-header">
+                <div className="skeleton h-6 w-3/4 mb-2"></div>
+                <div className="skeleton h-4 w-1/2"></div>
+              </div>
+              <div className="center-body">
+                <div className="skeleton h-4 w-full mb-2"></div>
+                <div className="skeleton h-4 w-2/3"></div>
+              </div>
+            </div>
+          ))
+        ) : filtered.map((center) => (
+          <div key={center._id} className="center-card">
+            <div className="center-header">
+              <h3 className="center-name">{center.name}</h3>
+              <div className="center-location">
+                <FaMapMarkerAlt />
+                {center.address?.city}, {center.address?.province}
+              </div>
+            </div>
+            
+            <div className="center-body">
+              <div className="center-stats">
+                <div className="center-stat">
+                  <div className="stat-number">{tests[center._id]?.length || 0}</div>
+                  <div className="stat-text">Services</div>
+                </div>
+                <div className="center-stat">
+                  <div className="stat-number">
+                    <FaPhoneAlt className="inline text-blue-500" />
+                  </div>
+                  <div className="stat-text">{center.contact?.phone || "-"}</div>
+                </div>
+                <div className="center-stat">
+                  <div className="stat-number">
+                    <FaEnvelope className="inline text-blue-500" />
+                  </div>
+                  <div className="stat-text">{center.contact?.email || "-"}</div>
+                </div>
+              </div>
+
+              {expanded === center._id && tests[center._id] && (
+                <div className="mt-4 space-y-2">
+                  <h4 className="font-semibold text-gray-700 mb-2">Available Services</h4>
+                  {tests[center._id].map((test) => (
+                    <div key={test._id} className="flex items-center justify-between text-sm p-2 bg-blue-50 rounded-lg">
+                      <span className="flex items-center gap-2">
+                        <FaFlask className="text-blue-500" />
+                        {test.name}
+                      </span>
+                      <span className="text-blue-600 font-medium">
+                        Rs. {test.price}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="center-footer">
+              <button
+                onClick={() => toggleExpand(center._id)}
+                className="btn btn-secondary"
+              >
+                <FaFlask />
+                {expanded === center._id ? "Hide Tests" : "View Tests"}
+              </button>
+              <button
+                onClick={() => handleDelete(center._id)}
+                className="btn btn-primary"
+              >
+                <FaTrash />
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
