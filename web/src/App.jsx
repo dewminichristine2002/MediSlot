@@ -1,35 +1,93 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+
+// 🌿 Main Pages
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import HomePage from "./pages/HomePage";
+import FreeEventsPage from "./pages/FreeEventsPage";
+import GuidelinesPage from "./pages/GuidelinesPage";
+import CentersPage from "./pages/CentersPage";
+
+// 🌿 Health Center Pages
+import HealthCenterHome from "./pages/HealthCenterHome";
+import HealthCenterBookings from "./pages/HealthCenterBookings";
+import HealthCenterDetails from "./pages/HealthCenterDetails";
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+
+          {/* Admin Routes (Protected) */}
+          <Route
+            path="/home"
+            element={
+              <ProtectedRoute>
+                <HomePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/free-events"
+            element={
+              <ProtectedRoute>
+                <FreeEventsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/guidelines"
+            element={
+              <ProtectedRoute>
+                <GuidelinesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/centers"
+            element={
+              <ProtectedRoute>
+                <CentersPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Health Center Routes (Protected) */}
+          <Route
+            path="/healthcenter/home"
+            element={
+              <ProtectedRoute>
+                <HealthCenterHome />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/healthcenter/bookings"
+            element={
+              <ProtectedRoute>
+                <HealthCenterBookings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/healthcenter/details"
+            element={
+              <ProtectedRoute>
+                <HealthCenterDetails />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
 }
 
-export default App
+export default App;

@@ -1,7 +1,12 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
-  RefreshControl, ActivityIndicator
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,8 +20,20 @@ const C = {
 };
 
 const UI = {
-  en: { titleTop: "Lab Tests", titleBottom: "Categories", loading: "Loading categories…", empty: "No categories found.", view: "View tests" },
-  si: { titleTop: "පරීක්ෂණ", titleBottom: "වර්ග", loading: "වර්ග පූරණය වෙමින්…", empty: "වර්ග කිසිවක් නොමැත.", view: "පරීක්ෂණ බලන්න" },
+  en: {
+    titleTop: "Lab Tests",
+    titleBottom: "Categories",
+    loading: "Loading categories…",
+    empty: "No categories found.",
+    view: "View tests",
+  },
+  si: {
+    titleTop: "පරීක්ෂණ",
+    titleBottom: "වර්ග",
+    loading: "වර්ග පූරණය වෙමින්…",
+    empty: "වර්ග කිසිවක් නොමැත.",
+    view: "පරීක්ෂණ බලන්න",
+  },
 };
 
 const iconFor = (cat) => {
@@ -47,10 +64,17 @@ export default function TestCategoriesScreen({ navigation }) {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const Header = () => (
-    <LinearGradient colors={[C.g1, C.g2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
+    <LinearGradient
+      colors={[C.g1, C.g2]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.header}
+    >
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={10}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -58,12 +82,17 @@ export default function TestCategoriesScreen({ navigation }) {
 
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.headerTitle}>
-            {L.titleTop}{"\n"}<Text style={styles.mediSlotTitle}>{L.titleBottom}</Text>
+            {L.titleTop}
+            {"\n"}
+            <Text style={styles.mediSlotTitle}>{L.titleBottom}</Text>
           </Text>
         </View>
 
         {/* Language toggle only */}
-        <TouchableOpacity onPress={() => setLang(prev => (prev === "en" ? "si" : "en"))} hitSlop={10}>
+        <TouchableOpacity
+          onPress={() => setLang((prev) => (prev === "en" ? "si" : "en"))}
+          hitSlop={10}
+        >
           <Ionicons name="language-outline" size={22} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -90,7 +119,15 @@ export default function TestCategoriesScreen({ navigation }) {
         data={cats}
         numColumns={2}
         keyExtractor={(item, idx) => item + idx}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              load();
+            }}
+          />
+        }
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.card}
@@ -112,26 +149,53 @@ export default function TestCategoriesScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   header: {
-    width: "100%", alignSelf: "stretch",
-    paddingHorizontal: 16, paddingTop: 16, paddingBottom: 22,
-    borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
+    width: "100%",
+    alignSelf: "stretch",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 22,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   headerRow: { marginTop: 46, flexDirection: "row", alignItems: "center" },
-  headerTitle: { fontSize: 20, fontWeight: "900", color: "#FFFFFF", lineHeight: 26 },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#FFFFFF",
+    lineHeight: 26,
+  },
   mediSlotTitle: { fontSize: 24, fontWeight: "900", color: "#FFFFFF" },
 
   gridWrap: { padding: 16 },
   center: { flex: 1, alignItems: "center" },
   card: {
-    flex: 1, margin: 8, padding: 16, backgroundColor: "#ffffff",
-    borderRadius: 16, elevation: 2, shadowColor: "#000", shadowOpacity: 0.08,
-    shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, alignItems: "center",
+    flex: 1,
+    margin: 8,
+    padding: 16,
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    alignItems: "center",
   },
   iconWrap: {
-    width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center",
-    backgroundColor: "#EAF8F5", marginBottom: 10
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EAF8F5",
+    marginBottom: 10,
   },
-  cardTitle: { fontSize: 15, fontWeight: "600", color: "#0F4332", textAlign: "center" },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#0F4332",
+    textAlign: "center",
+  },
   cardHint: { marginTop: 4, fontSize: 12, color: "#6b7280" },
-  muted: { color: "#6b7280", marginTop: 8 }
+  muted: { color: "#6b7280", marginTop: 8 },
 });

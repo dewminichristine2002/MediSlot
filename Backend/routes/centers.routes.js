@@ -1,6 +1,8 @@
 const router = require("express").Router();
 const c = require("../controllers/centers.controller");
 
+router.get('/names', c.getHealthCenterNames);
+
 // public
 router.get("/", c.listCenters);
 router.get("/nearby", c.nearbyCenters);
@@ -10,5 +12,6 @@ router.get("/:id/tests", c.getCenterTests); // merged Test + per-center fields (
 // admin
 router.post("/", c.createCenter);
 router.put("/:id", c.updateCenter);
+
 
 module.exports = router;
