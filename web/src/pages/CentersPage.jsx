@@ -1,18 +1,13 @@
 import React, { useEffect, useState } from "react";
 import {
   FaFlask,
-  FaChevronDown,
-  FaChevronUp,
   FaTrash,
   FaClinicMedical,
   FaMapMarkerAlt,
   FaPhoneAlt,
   FaEnvelope,
   FaSearch,
-  FaFilter,
-  FaUserMd,
-  FaCalendarCheck,
-  FaStethoscope
+  FaStethoscope,
 } from "react-icons/fa";
 import { api } from "../api";
 import "../styles/centers.css";
@@ -25,6 +20,10 @@ export default function CentersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProvince, setSelectedProvince] = useState("");
   const [expanded, setExpanded] = useState(null);
+  const [testsByCenter, setTestsByCenter] = useState({});
+  const [testsLoading, setTestsLoading] = useState({});
+  const [totalActiveServices, setTotalActiveServices] = useState(0);
+  const [provincesCovered, setProvincesCovered] = useState(0);
 
   useEffect(() => {
     fetchCenters();
@@ -35,11 +34,17 @@ export default function CentersPage() {
       const response = await api.get("/centers");
       const data = response.data || [];
       setCenters(data);
-      // compute provinces covered
-      const provinces = new Set(data.map((c) => c.address?.province).filter(Boolean));
+
+      // ✅ compute provinces covered
+      const provinces = new Set(
+        data.map((c) => c.address?.province).filter(Boolean)
+      );
       setProvincesCovered(provinces.size);
-      // preload tests counts for stats
-      const promises = data.map((c) => api.get(`/centers/${c._id}/tests`).then(r => r.data).catch(() => []));
+
+      // ✅ preload tests counts for stats
+      const promises = data.map((c) =>
+        api.get(`/centers/${c._id}/tests`).then((r) => r.data).catch(() => [])
+      );
       const results = await Promise.all(promises);
       const map = {};
       let total = 0;
@@ -56,11 +61,6 @@ export default function CentersPage() {
       setLoading(false);
     }
   };
-
-  const [testsByCenter, setTestsByCenter] = useState({});
-  const [testsLoading, setTestsLoading] = useState({});
-  const [totalActiveServices, setTotalActiveServices] = useState(0);
-  const [provincesCovered, setProvincesCovered] = useState(0);
 
   const fetchCenterTests = async (centerId) => {
     if (testsByCenter[centerId] || testsLoading[centerId]) return;
@@ -92,7 +92,8 @@ export default function CentersPage() {
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
     const matchesProvince =
-      !selectedProvince || (center.address && center.address.province === selectedProvince);
+      !selectedProvince ||
+      (center.address && center.address.province === selectedProvince);
     return matchesSearch && matchesProvince;
   });
 
@@ -109,9 +110,21 @@ export default function CentersPage() {
   ];
 
   const stats = [
-    { value: centers.length, label: "Total Centers", icon: <FaClinicMedical /> },
-    { value: totalActiveServices, label: "Active Services", icon: <FaStethoscope /> },
-    { value: provincesCovered, label: "Provinces Covered", icon: <FaMapMarkerAlt /> },
+    {
+      value: centers.length,
+      label: "Total Centers",
+      icon: <FaClinicMedical />,
+    },
+    {
+      value: totalActiveServices,
+      label: "Active Services",
+      icon: <FaStethoscope />,
+    },
+    {
+      value: provincesCovered,
+      label: "Provinces Covered",
+      icon: <FaMapMarkerAlt />,
+    },
   ];
 
   if (loading) {
@@ -130,21 +143,64 @@ export default function CentersPage() {
     <>
       <Navbar />
       <div className="centers-page">
-        <div className="search-section">
-          <div className="search-bar">
-            <FaSearch className="search-icon" />
+        {/* 🔍 Search Section */}
+        <div
+          className="search-section"
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: "12px",
+            flexWrap: "wrap",
+            marginBottom: "24px",
+          }}
+        >
+          <div
+            className="search-bar"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              background: "#fff",
+              border: "1px solid #CBD5E1",
+              borderRadius: "12px",
+              padding: "6px 12px",
+              width: "100%",
+              maxWidth: "350px",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+            }}
+          >
+            <FaSearch
+              className="search-icon"
+              style={{ marginRight: "8px", color: "#64748B" }}
+            />
             <input
               type="text"
-              placeholder="Search centers by name..."
+              placeholder="Search centers..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                flex: 1,
+                border: "none",
+                outline: "none",
+                fontSize: "0.95rem",
+                background: "transparent",
+              }}
             />
           </div>
+
           <select
             className="province-select"
             value={selectedProvince}
             onChange={(e) => setSelectedProvince(e.target.value)}
-            style={{ color: "#333" }}
+            style={{
+              borderRadius: "12px",
+              border: "1px solid #CBD5E1",
+              padding: "8px 12px",
+              fontSize: "0.95rem",
+              color: "#333",
+              background: "#fff",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+            }}
           >
             <option value="">All Provinces</option>
             {provinces.map((province) => (
@@ -155,6 +211,7 @@ export default function CentersPage() {
           </select>
         </div>
 
+        {/* 📊 Stats */}
         <div className="stats-section">
           {stats.map((stat, index) => (
             <div key={index} className="stat-card">
@@ -165,6 +222,7 @@ export default function CentersPage() {
           ))}
         </div>
 
+        {/* 🏥 Centers Grid */}
         <div className="centers-grid">
           {filteredCenters.map((center) => (
             <div key={center._id} className="center-card">
@@ -172,30 +230,32 @@ export default function CentersPage() {
                 <FaClinicMedical /> {center.name}
               </h3>
               <div className="center-location">
-                <FaMapMarkerAlt />
-                {center.address?.city || ""}, {center.address?.province || ""}
+                <FaMapMarkerAlt /> {center.address?.city || ""},{" "}
+                {center.address?.province || ""}
               </div>
               <div className="center-services">
-                <FaStethoscope />
-                {(testsByCenter[center._id]?.length ?? (center.services ? center.services.length : 0))} Services
+                <FaStethoscope />{" "}
+                {testsByCenter[center._id]?.length ??
+                  (center.services ? center.services.length : 0)}{" "}
+                Services
               </div>
               <div className="center-contact">
                 <span>
                   <FaPhoneAlt /> {center.contact?.phone || center.phone || "N/A"}
                 </span>
                 <span>
-                  <FaEnvelope /> {center.contact?.email || center.email || "N/A"}
+                  <FaEnvelope />{" "}
+                  {center.contact?.email || center.email || "N/A"}
                 </span>
               </div>
+
               <div className="center-actions">
                 <button
-                  onClick={() =>
-                    {
-                      const next = expanded === center._id ? null : center._id;
-                      setExpanded(next);
-                      if (next) fetchCenterTests(center._id);
-                    }
-                  }
+                  onClick={() => {
+                    const next = expanded === center._id ? null : center._id;
+                    setExpanded(next);
+                    if (next) fetchCenterTests(center._id);
+                  }}
                   className="btn btn-primary"
                 >
                   <FaFlask />
@@ -205,23 +265,38 @@ export default function CentersPage() {
                   onClick={() => handleDelete(center._id)}
                   className="btn btn-danger"
                 >
-                  <FaTrash />
-                  Delete
+                  <FaTrash /> Delete
                 </button>
               </div>
-              {expanded === center._id ? (
-                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #eef2f8" }}>
+
+              {expanded === center._id && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    paddingTop: 12,
+                    borderTop: "1px solid #eef2f8",
+                  }}
+                >
                   {testsLoading[center._id] ? (
                     <div>Loading tests...</div>
                   ) : (
                     <div>
                       {(testsByCenter[center._id] || []).length === 0 ? (
-                        <div style={{ color: "#6b7280" }}>No tests for this center.</div>
+                        <div style={{ color: "#6b7280" }}>
+                          No tests for this center.
+                        </div>
                       ) : (
                         <div style={{ overflowX: "auto" }}>
-                          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                          <table
+                            style={{ width: "100%", borderCollapse: "collapse" }}
+                          >
                             <thead>
-                              <tr style={{ textAlign: "left", borderBottom: "1px solid #e6eef9" }}>
+                              <tr
+                                style={{
+                                  textAlign: "left",
+                                  borderBottom: "1px solid #e6eef9",
+                                }}
+                              >
                                 <th style={{ padding: "8px 6px" }}>Test Name</th>
                                 <th style={{ padding: "8px 6px" }}>Category</th>
                                 <th style={{ padding: "8px 6px" }}>Price</th>
@@ -231,12 +306,27 @@ export default function CentersPage() {
                             </thead>
                             <tbody>
                               {(testsByCenter[center._id] || []).map((t) => (
-                                <tr key={t.test_id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                                  <td style={{ padding: "10px 6px" }}>{t.name}</td>
-                                  <td style={{ padding: "10px 6px" }}>{t.category || "General"}</td>
-                                  <td style={{ padding: "10px 6px" }}>{t.price != null ? `Rs ${t.price}` : "—"}</td>
-                                  <td style={{ padding: "10px 6px" }}>{t.capacity ?? "—"}</td>
-                                  <td style={{ padding: "10px 6px" }}>{t.daily_count ?? "—"}</td>
+                                <tr
+                                  key={t.test_id}
+                                  style={{
+                                    borderBottom: "1px solid #f1f5f9",
+                                  }}
+                                >
+                                  <td style={{ padding: "10px 6px" }}>
+                                    {t.name}
+                                  </td>
+                                  <td style={{ padding: "10px 6px" }}>
+                                    {t.category || "General"}
+                                  </td>
+                                  <td style={{ padding: "10px 6px" }}>
+                                    {t.price != null ? `Rs ${t.price}` : "—"}
+                                  </td>
+                                  <td style={{ padding: "10px 6px" }}>
+                                    {t.capacity ?? "—"}
+                                  </td>
+                                  <td style={{ padding: "10px 6px" }}>
+                                    {t.daily_count ?? "—"}
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
@@ -246,7 +336,7 @@ export default function CentersPage() {
                     </div>
                   )}
                 </div>
-              ) : null}
+              )}
             </div>
           ))}
         </div>

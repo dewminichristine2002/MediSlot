@@ -67,6 +67,19 @@ export default function TestsList() {
   if (!tests.length) return <p style={{ padding: 16 }}>No tests attached to this center.</p>;
 
   const coords = center?.location?.coordinates; // [lng, lat]
+  const mapElement = coords && coords.length === 2 ? (
+    <div style={{ width: 260, height: 140, borderRadius: 8, overflow: "hidden", boxShadow: "0 6px 18px rgba(0,0,0,0.08)" }}>
+      <iframe
+        title="center-map"
+        width="100%"
+        height="100%"
+        style={{ border: 0 }}
+        src={`https://www.google.com/maps?q=${coords[1]},${coords[0]}&z=15&output=embed`}
+      />
+    </div>
+  ) : (
+    <div style={{ color: "#6b7280" }}>Location not available</div>
+  );
 
   return (
     <main className="health-main">
