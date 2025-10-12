@@ -1,18 +1,20 @@
 const express = require("express");
-const ctrl = require("../../controllers/LabTests/userChecklistController.js");
+const router = express.Router();
+const checklist = require("../../controllers/LabTests/userChecklistController");
 
-const r = express.Router();
+// ✅ Create checklist for a test
+router.post("/create", checklist.createFromTest);
 
-// create from a Test’s checklist
-r.post("/", ctrl.createFromTest);          // body: { userId, testId }
-// read
-r.get("/", ctrl.listForUser);              // query: ?userId=... [&testId=...]
-r.get("/:id", ctrl.getOne);                // by checklist doc id
-// toggle one item
-r.patch("/:id/items/:key", ctrl.toggleItem); // body: { value: true|false }
-// reset all to false
-r.post("/:id/reset", ctrl.resetAll);
-// delete checklist
-r.delete("/:id", ctrl.remove);
+// ✅ Get all checklists for a user
+router.get("/", checklist.listForUser);
 
-module.exports = r;
+// ✅ Toggle single checklist item
+router.patch("/:id/items/:key", checklist.toggleItem);
+
+// ✅ Reset a checklist
+router.put("/:id/reset", checklist.resetAll);
+
+// ✅ Delete checklist
+router.delete("/:id", checklist.remove);
+
+module.exports = router;

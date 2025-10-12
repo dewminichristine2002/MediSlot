@@ -44,21 +44,28 @@ export default function TestListScreen({ route, navigation }) {
   const [lang, setLang] = useState("en");
   const L = UI[lang];
 
-  const load = useCallback(async () => {
-    try {
-      const data = await fetchTests(category, q);
-      setTests(data);
-    } catch (e) {
-      console.warn(e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [category, q]);
+// inside TestListScreen.js
+const load = useCallback(async () => {
+  try {
+    const data = await fetchTests({
+      category,               // works if it's an English category
+      category_si: category,  // works if it's a Sinhala category
+      q,
+      lang                    // tells backend to localize fields
+    });
+    setTests(data);
+  } catch (e) {
+    console.warn(e);
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+}, [category, q, lang]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+useEffect(() => {
+  load();
+}, [load]);
+
 
   const Header = () => (
     <LinearGradient

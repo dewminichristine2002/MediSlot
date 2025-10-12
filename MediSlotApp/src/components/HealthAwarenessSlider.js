@@ -1,7 +1,13 @@
-// src/components/HealthAwarenessSlider.js
 import React, { useEffect, useRef, useState } from "react";
 import {
-  View, Text, Image, Pressable, FlatList, Dimensions, Animated, StyleSheet
+  View,
+  Text,
+  Image,
+  Pressable,
+  FlatList,
+  Dimensions,
+  Animated,
+  StyleSheet,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { listHealthAwareness } from "../api/healthAwareness";
@@ -10,18 +16,19 @@ import { getApiBaseUrl } from "../api/config";
 const { width } = Dimensions.get("window");
 const CARD_W = Math.min(width, 380);
 
-// Make "/uploads/xxx.png" absolute for the device
+// ✅ Fixed: absolute URL builder (no spaces, no duplicate slashes)
 const toAbsolute = (u) => {
   if (!u) return null;
-  return u.startsWith("/") ? `${getApiBaseUrl()}${u}` : u;
+  const base = getApiBaseUrl().trim().replace(/\/$/, "");
+  return u.startsWith("/") ? `${base}${u}` : u;
 };
 
-// Pick image from new/old shapes
+// ✅ Pick image from available shapes
 const pickImg = (item) => {
   const raw =
-    item?.imageUrl ||                         // new field
+    item?.imageUrl || // new field
     (Array.isArray(item?.photos) && item.photos[0]) || // old field
-    item?.imageURL ||                         // stray casing
+    item?.imageURL || // stray casing
     null;
   return raw ? toAbsolute(raw) : null;
 };
@@ -40,9 +47,9 @@ export default function HealthAwarenessSlider() {
         const withoutImg = (data || []).filter((x) => !pickImg(x));
         setItems([...withImg, ...withoutImg]);
 
-        // DEBUG: see exactly what URLs the slider will use
+        // ✅ Debug log
         [...withImg].slice(0, 3).forEach((it) => {
-          console.log("SLIDER IMG URL:", it._id, pickImg(it));
+          console.log("🖼️ SLIDER IMG URL:", it._id, pickImg(it));
         });
       } catch (e) {
         console.warn("Slider load error:", e?.message);
@@ -55,25 +62,47 @@ export default function HealthAwarenessSlider() {
     return (
       <Pressable
         style={styles.card}
-        onPress={() => navigation.navigate("HealthAwarenessDetail", { id: item._id })}
+        onPress={() =>
+          navigation.navigate("HealthAwarenessDetail", { id: item._id })
+        }
       >
         {img ? (
           <Image
             source={{ uri: img }}
             style={styles.image}
             resizeMode="cover"
-            onError={(e) => console.log("Slider image error:", img, e?.nativeEvent)}
+            onError={(e) =>
+              console.log("❌ Image load error:", img, e?.nativeEvent)
+            }
           />
         ) : (
-          <View style={[styles.image, styles.imagePlaceholder]} />
+          <View style={[styles.image, styles.imagePlaceholder]}>
+            <Text style={{ color: "#64748b" }}>No image</Text>
+          </View>
         )}
 
         <View style={styles.textWrap}>
-          {!!item.title && <Text numberOfLines={1} style={styles.title}>{item.title}</Text>}
-          {!!item.summary && <Text numberOfLines={2} style={styles.summary}>{item.summary}</Text>}
+          {!!item.title && (
+            <Text numberOfLines={1} style={styles.title}>
+              {item.title}
+            </Text>
+          )}
+          {!!item.summary && (
+            <Text numberOfLines={2} style={styles.summary}>
+              {item.summary}
+            </Text>
+          )}
           <View style={styles.tagsRow}>
-            {!!item.category && <View style={styles.tag}><Text style={styles.tagText}>{item.category}</Text></View>}
-            {!!item.region && <View style={styles.tag}><Text style={styles.tagText}>{item.region}</Text></View>}
+            {!!item.category && (
+              <View style={styles.tag}>
+                <Text style={styles.tagText}>{item.category}</Text>
+              </View>
+            )}
+            {!!item.region && (
+              <View style={styles.tag}>
+                <Text style={styles.tagText}>{item.region}</Text>
+              </View>
+            )}
           </View>
         </View>
       </Pressable>
@@ -92,7 +121,11 @@ export default function HealthAwarenessSlider() {
         decelerationRate="fast"
         showsHorizontalScrollIndicator={false}
         renderItem={renderItem}
-        getItemLayout={(_, i) => ({ length: CARD_W, offset: CARD_W * i, index: i })}
+        getItemLayout={(_, i) => ({
+          length: CARD_W,
+          offset: CARD_W * i,
+          index: i,
+        })}
         contentContainerStyle={{ paddingHorizontal: (width - CARD_W) / 2 }}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { x: scrollX } } }],
@@ -103,9 +136,22 @@ export default function HealthAwarenessSlider() {
       <View style={styles.dots}>
         {items.map((_, i) => {
           const inputRange = [(i - 1) * CARD_W, i * CARD_W, (i + 1) * CARD_W];
-          const dotW = scrollX.interpolate({ inputRange, outputRange: [8, 18, 8], extrapolate: "clamp" });
-          const opacity = scrollX.interpolate({ inputRange, outputRange: [0.4, 1, 0.4], extrapolate: "clamp" });
-          return <Animated.View key={i} style={[styles.dot, { width: dotW, opacity }]} />;
+          const dotW = scrollX.interpolate({
+            inputRange,
+            outputRange: [8, 18, 8],
+            extrapolate: "clamp",
+          });
+          const opacity = scrollX.interpolate({
+            inputRange,
+            outputRange: [0.4, 1, 0.4],
+            extrapolate: "clamp",
+          });
+          return (
+            <Animated.View
+              key={i}
+              style={[styles.dot, { width: dotW, opacity }]}
+            />
+          );
         })}
       </View>
     </View>
@@ -129,8 +175,18 @@ const styles = StyleSheet.create({
   title: { color: "#0f172a", fontWeight: "700", fontSize: 16 },
   summary: { color: "#475569" },
   tagsRow: { flexDirection: "row", gap: 8, marginTop: 8 },
-  tag: { backgroundColor: "#e6f0ff", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
+  tag: {
+    backgroundColor: "#e6f0ff",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
   tagText: { fontSize: 12, color: "#1e40af" },
-  dots: { flexDirection: "row", gap: 6, justifyContent: "center", marginTop: 10 },
+  dots: {
+    flexDirection: "row",
+    gap: 6,
+    justifyContent: "center",
+    marginTop: 10,
+  },
   dot: { height: 8, borderRadius: 8, backgroundColor: "#93c5fd" },
 });

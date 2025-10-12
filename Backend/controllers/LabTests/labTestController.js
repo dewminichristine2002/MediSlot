@@ -1,6 +1,7 @@
 // controllers/LabTests/labTestController.js
 const Test = require("../../models/Test.js");
 
+
 // helper: merge localized fields over base with fallback
 function localizeTest(doc, lang) {
   if (!lang) return doc;
@@ -19,19 +20,26 @@ function localizeTest(doc, lang) {
   };
 }
 
-// GET /api/tests?category=Blood%20Test&lang=si&category_si=ලේ%20පරීක්ෂණය&q=cbc
+// GET /api/tests?category=...&category_si=...&q=...&lang=si
 exports.list = async (req, res) => {
   const { category, category_si, q, lang } = req.query;
-  const filter = {};
-  if (category) filter.category = category;
-  if (category_si) filter["translations.si.category"] = category_si;
+
+  const and = [];
+  const catOr = [];
+  if (category)   catOr.push({ category });
+  if (category_si) catOr.push({ "translations.si.category": category_si });
+  if (catOr.length) and.push({ $or: catOr });
+
   if (q) {
-    filter.$or = [
-      { name: { $regex: q, $options: "i" } },
-      { "translations.si.name": { $regex: q, $options: "i" } },
-    ];
+    and.push({
+      $or: [
+        { name: { $regex: q, $options: "i" } },
+        { "translations.si.name": { $regex: q, $options: "i" } },
+      ],
+    });
   }
 
+  const filter = and.length ? { $and: and } : {};
   const docs = await Test.find(filter).sort({ createdAt: -1 }).lean();
   res.json(lang ? docs.map(d => localizeTest(d, lang)) : docs);
 };
@@ -39,8 +47,24 @@ exports.list = async (req, res) => {
 // GET /api/tests/:id?lang=si
 exports.getOne = async (req, res) => {
   const { lang } = req.query;
-  const doc = await Test.findById(req.params.id).lean();
+  let doc = null;
+
+  // Try finding by MongoDB _id
+  try {
+    doc = await Test.findById(req.params.id).lean();
+  } catch {
+    doc = null; // if invalid ObjectId format
+  }
+
+  // If not found, try by testId or test_id
+  if (!doc) {
+    doc = await Test.findOne({
+      $or: [{ testId: req.params.id }, { test_id: req.params.id }],
+    }).lean();
+  }
+
   if (!doc) return res.status(404).json({ message: "Not found" });
+
   res.json(lang ? localizeTest(doc, lang) : doc);
 };
 
@@ -69,8 +93,20 @@ exports.remove = async (req, res) => {
   res.json({ ok: true });
 };
 
-// GET /api/tests/categories
-exports.categories = async (_req, res) => {
-  const cats = await Test.distinct("category");
-  res.json(cats.sort());
+// GET /api/labtests/categories?lang=si
+// GET /api/labtests/categories?lang=en or ?lang=si
+exports.categories = async (req, res) => {
+  const { lang } = req.query;
+
+  let categories = [];
+
+  if (lang === "si") {
+    categories = await Test.find({ "translations.si.category": { $exists: true, $ne: "" } })
+      .distinct("translations.si.category");
+  } else {
+    categories = await Test.distinct("category");
+  }
+
+  res.json(categories.sort());
 };
+

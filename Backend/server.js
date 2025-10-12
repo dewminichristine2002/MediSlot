@@ -71,7 +71,7 @@ app.use('/uploads', express.static(uploadsRoot));
 
 // --- Routes: mount each ONCE ---
 app.use("/api/health-awareness", require("./routes/LabTests/healthAwarenessRoutes"));
-app.use("/api/user-checklists", require("./routes/LabTests/userChecklistRoutes"));
+app.use("/api/user-checklist", require("./routes/LabTests/userChecklistRoutes"));
 
 // Keep ONE tests route. If you want the generic tests CRUD, use this:
 app.use("/api/tests", require("./routes/tests.routes"));

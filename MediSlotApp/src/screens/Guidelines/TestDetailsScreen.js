@@ -7,6 +7,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as Speech from "expo-speech";                     // 👈 TTS
 import { fetchTestById } from "../../api/tests";
+import { useAuth } from "../../context/AuthContext";
+import { saveChecklistForTest } from "../../api/userChecklist";
+import { Alert } from "react-native";
+
 
 const C = {
   bg: "#F9FAFB",
@@ -86,6 +90,7 @@ export default function TestDetailsScreen({ route, navigation }) {
   const [pitch, setPitch] = useState(1.0);
   const [voiceId, setVoiceId] = useState(null);
   const L = UI[lang];
+   const { user } = useAuth();
 
   // Load test
   useEffect(() => {
@@ -123,6 +128,19 @@ export default function TestDetailsScreen({ route, navigation }) {
       }
     })();
   }, [lang]);
+  const handleSaveChecklist = async () => {
+    if (!user?._id) {
+      navigation.navigate("Login");
+      return;
+    }
+    try {
+      await saveChecklistForTest({ userId: user._id, testId: test.testId });
+      Alert.alert("✅ Saved!", "Checklist has been added to your profile.");
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Error", "Could not save checklist.");
+    }
+  };
 
   // Helpers to choose localized fields
   const si = test?.translations?.si || {};
@@ -340,12 +358,26 @@ export default function TestDetailsScreen({ route, navigation }) {
             <Text style={styles.linkText}>{L.moreInfo}</Text>
           </TouchableOpacity>
         )}
+        <TouchableOpacity
+  style={styles.saveBtn}
+  onPress={handleSaveChecklist}
+>
+  <Text style={styles.saveTxt}>💾 Save Checklist</Text>
+</TouchableOpacity>
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+    saveBtn: {
+    backgroundColor: "#22C55E",
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    marginVertical: 12,
+  },
+  saveTxt: { color: "#fff", fontSize: 16, fontWeight: "700" },
   header: {
     width: "100%", alignSelf: "stretch",
     paddingHorizontal: 16, paddingTop: 16, paddingBottom: 22,

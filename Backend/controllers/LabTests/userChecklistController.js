@@ -1,17 +1,17 @@
+// controllers/LabTests/userChecklistController.js
 const UserChecklist = require("../../models/UserChecklist.js");
 const Test = require("../../models/Test.js");
 
-// Create from Test’s checklist
+// ✅ Create checklist from Test
 exports.createFromTest = async (req, res) => {
   const { userId, testId } = req.body;
-  if (!userId || !testId) {
+  if (!userId || !testId)
     return res.status(400).json({ message: "userId and testId required" });
-  }
 
-  const test = await Test.findOne({ testId }); // uses your testId field
+  const test = await Test.findOne({ testId });
   if (!test) return res.status(404).json({ message: "Test not found" });
 
-  const items = (test.checklist || []).map(i => ({
+  const items = (test.checklist || []).map((i) => ({
     key: i.key,
     label: i.label,
     isMandatory: !!i.isMandatory,
@@ -20,7 +20,6 @@ exports.createFromTest = async (req, res) => {
 
   const total = items.length;
 
-  // upsert: one per user+test
   const doc = await UserChecklist.findOneAndUpdate(
     { userId, testId },
     { userId, testId, items, totalCount: total, completedCount: 0 },
@@ -30,31 +29,37 @@ exports.createFromTest = async (req, res) => {
   res.status(201).json(doc);
 };
 
-// List for a user (optional filter by testId)
+// ✅ List all checklists for a user
 exports.listForUser = async (req, res) => {
   const { userId, testId } = req.query;
   if (!userId) return res.status(400).json({ message: "userId required" });
   const q = { userId };
   if (testId) q.testId = testId;
-  const docs = await UserChecklist.find(q).sort({ updatedAt: -1 });
-  res.json(docs);
+
+  const docs = await UserChecklist.find(q)
+    .sort({ updatedAt: -1 })
+    .lean();
+
+  // attach test details (name, category, etc.)
+  const enriched = await Promise.all(
+    docs.map(async (d) => {
+      const test = await Test.findOne({ testId: d.testId }).lean();
+      return { ...d, test };
+    })
+  );
+
+  res.json(enriched);
 };
 
-exports.getOne = async (req, res) => {
-  const doc = await UserChecklist.findById(req.params.id);
-  if (!doc) return res.status(404).json({ message: "Not found" });
-  res.json(doc);
-};
-
-// Toggle one checklist item by key
+// ✅ Toggle one checklist item
 exports.toggleItem = async (req, res) => {
-  const { id, key } = { id: req.params.id, key: req.params.key };
-  const { value } = req.body; // true/false
+  const { id, key } = req.params;
+  const { value } = req.body;
   const doc = await UserChecklist.findById(id);
   if (!doc) return res.status(404).json({ message: "Not found" });
 
   let completed = 0;
-  doc.items = doc.items.map(it => {
+  doc.items = doc.items.map((it) => {
     if (it.key === key) it.value = !!value;
     if (it.value) completed++;
     return it;
@@ -64,17 +69,17 @@ exports.toggleItem = async (req, res) => {
   res.json(doc);
 };
 
-// Reset all items to false
+// ✅ Reset all
 exports.resetAll = async (req, res) => {
   const doc = await UserChecklist.findById(req.params.id);
   if (!doc) return res.status(404).json({ message: "Not found" });
-  doc.items = doc.items.map(it => ({ ...it.toObject(), value: false }));
+  doc.items = doc.items.map((it) => ({ ...it.toObject(), value: false }));
   doc.completedCount = 0;
   await doc.save();
   res.json(doc);
 };
 
-// Delete a checklist
+// ✅ Delete checklist
 exports.remove = async (req, res) => {
   const doc = await UserChecklist.findByIdAndDelete(req.params.id);
   if (!doc) return res.status(404).json({ message: "Not found" });

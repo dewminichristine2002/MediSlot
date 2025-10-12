@@ -12,6 +12,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { fetchCategories } from "../../api/tests";
 
+
 const C = {
   bg: "#F9FAFB",
   text: "#0F172A",
@@ -50,11 +51,11 @@ export default function TestCategoriesScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lang, setLang] = useState("en"); // "en" | "si"
-  const L = UI[lang];
+  const L = UI[lang];  
 
   const load = useCallback(async () => {
     try {
-      const data = await fetchCategories();
+       const data = await fetchCategories(lang);  
       setCats(data);
     } catch (e) {
       console.warn(e);
@@ -62,11 +63,15 @@ export default function TestCategoriesScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+ }, [lang]); 
 
-  useEffect(() => {
-    load();
-  }, [load]);
+useEffect(() => {
+  load();
+}, [load]);
+
+const toggleLang = () => {
+  setLang(prev => (prev === "en" ? "si" : "en"));
+};
 
   const Header = () => (
     <LinearGradient

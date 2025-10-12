@@ -1,5 +1,5 @@
 // src/screens/CenterDetailsScreen.js
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -9,9 +9,14 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Platform,
+  Linking,
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, Polyline } from "react-native-maps";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Location from "expo-location";
+import Constants from "expo-constants";
+import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useAuth } from "../context/AuthContext";
@@ -122,7 +127,7 @@ function decodePolyline(encoded) {
 
     points.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
   }
-  return null;
+  return points;
 }
 
 /* ---------- Route preview ---------- */
@@ -318,7 +323,7 @@ export default function CenterDetailsScreen({ route, navigation }) {
           </Text>
         ) : null}
         <View style={styles.actionRow}>
-          <TouchableOpacity
+          <SoftButton
             style={[styles.softBtn, { flex: 1 }]}
             onPress={() =>
               navigation.navigate("NewBooking", {
@@ -336,7 +341,7 @@ export default function CenterDetailsScreen({ route, navigation }) {
             }
           >
             <Text style={styles.softBtnText}>More Details</Text>
-          </TouchableOpacity>
+          </SoftButton>
         </View>
       </View>
 
@@ -393,7 +398,10 @@ export default function CenterDetailsScreen({ route, navigation }) {
               Directions
             </GradientButton>
           </View>
-        ) : null}
+        </Card>
+
+        {/* Route Preview */}
+        <RoutePreview center={center} />
 
         {/* Tests */}
         <View style={styles.card}>

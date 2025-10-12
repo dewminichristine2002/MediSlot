@@ -27,6 +27,7 @@ import AdminScanScreen from "../screens/AdminScanScreen";
 import TestCategoriesScreen from "../screens/Guidelines/TestCategoriesScreen";
 import TestListScreen from "../screens/Guidelines/TestListScreen";
 import TestDetailsScreen from "../screens/Guidelines/TestDetailsScreen";
+import MyChecklistScreen from "../screens/MyChecklistScreen";
 
 // ----- Booking flow (your module) -----
 import NewBookingScreen from "../screens/NewBookingScreen";
@@ -106,6 +107,11 @@ function HomeStack() {
         component={BookingSuccessScreen}
         options={{ headerShown: false }}
       />
+      <Stack.Screen
+  name="MyChecklist"
+  component={MyChecklistScreen}
+  options={{ title: "My Checklists" }}
+/>
     </Stack.Navigator>
   );
 }

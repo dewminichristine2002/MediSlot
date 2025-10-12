@@ -195,9 +195,9 @@ export default function ProfileScreen({ route }) {
               icon="checkmark-done-outline"
               active={false}
               label="My Check List"
-              onPress={() => { 
-                // handle navigation or toggle
-                 }}
+           
+               onPress={() => navigation.navigate("MyChecklist")}
+                 
             />
           </View>
         </View>

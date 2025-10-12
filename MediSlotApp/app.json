@@ -1,12 +1,18 @@
 {
   "expo": {
-    "name": "",
+    "name": "MediSlot",
     "slug": "MediSlotApp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "extra": {
+      "GMAPS_API_KEY": "YOUR_REAL_KEY",
+      "eas": {
+        "projectId": "7fce2c8b-289f-4260-8df6-9bb0fe0e6b1f"
+      }
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -24,7 +30,12 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "permissions": ["CAMERA"]
+      "permissions": [
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.dewmini.medislot"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -32,7 +43,8 @@
     "plugins": [
       "expo-barcode-scanner",
       "expo-web-browser",
-      "expo-camera"
+      "expo-camera",
+      "expo-font"
     ]
   }
 }

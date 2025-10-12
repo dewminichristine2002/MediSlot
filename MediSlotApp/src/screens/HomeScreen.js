@@ -170,21 +170,35 @@ export default function HomeScreen({ navigation }) {
     return () => clearInterval(timerRef.current);
   }, [items.length]);
 
-  const renderItem = ({ item }) => {
-    const thumb =
-      Array.isArray(item.photos) && item.photos[0] ? item.photos[0] : null;
-    return (
-      <Pressable
-        onPress={() =>
-          navigation.navigate("HealthAwarenessDetail", { id: item._id })
-        }
-        style={s.card}
-      >
-        {thumb ? (
-          <Image source={{ uri: thumb }} style={s.cardImgTop} />
-        ) : (
-          <View style={[s.cardImgTop, s.cardImgPlaceholder]} />
-        )}
+const renderItem = ({ item }) => {
+  const base = getApiBaseUrl().trim().replace(/\/$/, "");
+  const thumb =
+    item?.imageUrl
+      ? `${base}${item.imageUrl}`
+      : Array.isArray(item.photos) && item.photos[0]
+      ? `${base}${item.photos[0]}`
+      : null;
+
+  return (
+    <Pressable
+      onPress={() =>
+        navigation.navigate("HealthAwarenessDetail", { id: item._id })
+      }
+      style={s.card}
+    >
+      {thumb ? (
+        <Image
+          source={{ uri: thumb }}
+          style={s.cardImgTop}
+          resizeMode="cover"
+          onError={(e) => console.log("❌ Image error:", thumb, e?.nativeEvent)}
+        />
+      ) : (
+        <View style={[s.cardImgTop, s.cardImgPlaceholder]}>
+          <Text style={{ color: "#64748b" }}>No image</Text>
+        </View>
+      )}
+
         <View style={s.cardBody}>
           <View style={s.cardTitleRow}>
             <Text numberOfLines={1} style={s.cardTitle}>
@@ -368,6 +382,7 @@ export default function HomeScreen({ navigation }) {
         style={{ opacity: fade, transform: [{ translateY: slideY }] }}
       >
         <VitalsBanner />
+
       </Animated.View>
 
       {/* Small Intro + Booking Button */}
@@ -376,9 +391,9 @@ export default function HomeScreen({ navigation }) {
       >
         <View style={s.introWrap}>
           <Text style={s.introText}>
-            Your health companion — book diagnostic tests at nearby centers with
-            ease.
+            Your health companion - book diagnostic tests at nearby centers with ease.
           </Text>
+
           <TouchableOpacity
             style={s.bookingBtn}
             onPress={() => navigation.navigate("NewBooking")}
@@ -397,6 +412,7 @@ export default function HomeScreen({ navigation }) {
             </LinearGradient>
           </TouchableOpacity>
         </View>
+
       </Animated.View>
 
       {/* Section header for slider */}
@@ -553,18 +569,17 @@ function VitalsBanner() {
     outputRange: [4, 42],
   });
 
-  return (
-    <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
-      <View style={s.banner}>
-        {/* Left: pulsing pink heart */}
+ return (
+  <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
+    <View style={s.banner}>
+      {/* row with heart / bars / tube */}
+      <View style={s.bannerRow}>
+        {/* Left: pulsing heart */}
         <View style={s.bannerLeft}>
           <Animated.View
             style={[
               s.heartGlow,
-              {
-                backgroundColor: "rgba(236,72,153,0.22)",
-                transform: [{ scale: heartScale }],
-              },
+              { backgroundColor: "rgba(236,72,153,0.22)", transform: [{ scale: heartScale }] },
             ]}
           />
           <Animated.View style={{ transform: [{ scale: heartScale }] }}>
@@ -573,7 +588,7 @@ function VitalsBanner() {
           <Text style={[s.bannerLabel, { color: "#EC4899" }]}>Vitals</Text>
         </View>
 
-        {/* Middle: ECG bars (cyan→green) */}
+        {/* Middle: ECG bars */}
         <View style={s.barsRow}>
           {bars.map((h, i) => (
             <View key={i} style={s.barWrap}>
@@ -589,33 +604,29 @@ function VitalsBanner() {
           ))}
         </View>
 
-        {/* Right: lab test tube (gradient fill) */}
+        {/* Right: lab tube */}
         <View style={s.bannerRight}>
-          <MaterialCommunityIcons
-            name="test-tube"
-            size={20}
-            color="#0891B2"
-            style={{ marginBottom: 4 }}
-          />
+          <MaterialCommunityIcons name="test-tube" size={20} color="#0891B2" style={{ marginBottom: 4 }} />
           <View style={s.tube}>
             <Animated.View style={{ height: tubeFillH, width: "100%" }}>
               <LinearGradient
                 colors={["#06B6D4", "#10B981"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 0, y: 1 }}
-                style={{
-                  flex: 1,
-                  borderBottomLeftRadius: 5,
-                  borderBottomRightRadius: 5,
-                }}
+                style={{ flex: 1, borderBottomLeftRadius: 5, borderBottomRightRadius: 5 }}
               />
             </Animated.View>
           </View>
           <Text style={[s.bannerLabel, { color: "#0891B2" }]}>Lab</Text>
         </View>
       </View>
+
+      {/* 👇 Your slogan inside the same card */}
+      <Text style={s.sloganInside}>Your Health is Our Priority</Text>
     </View>
-  );
+  </View>
+);
+
 }
 
 /* ----------------- Helpers ----------------- */
@@ -727,15 +738,26 @@ const s = StyleSheet.create({
   loginBtnText: { color: C.text, fontWeight: "800" },
 
   /* Vitals banner (white card) */
-  banner: {
-    width: "100%",
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-  },
+banner: {
+  width: "100%",
+  borderRadius: 16,
+  paddingVertical: 12,
+  paddingHorizontal: 12,
+  backgroundColor: "#FFFFFF",
+},
+bannerRow: {                 // ← NEW: was previously on banner
+  flexDirection: "row",
+  alignItems: "center",
+},
+sloganInside: { 
+    fontSize: 18,
+  fontWeight: "700",             // ← NEW
+  marginTop: 8,
+  textAlign: "center",
+  fontWeight: "800",
+  color: "#2563EB",          // matches your theme
+},
+
   bannerLeft: { width: 64, alignItems: "center", justifyContent: "center" },
   bannerRight: { width: 64, alignItems: "center", justifyContent: "center" },
   heartGlow: { position: "absolute", width: 42, height: 42, borderRadius: 21 },
@@ -874,19 +896,21 @@ const s = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
   },
-  introWrap: {
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    marginTop: 14,
-    marginBottom: 12,
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    elevation: 3, // Android shadow
-    shadowColor: "#000", // iOS shadow
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-  },
+introWrap: {
+  paddingHorizontal: 18,
+  paddingVertical: 16,
+  marginTop: 14,
+  marginBottom: 12,
+  marginHorizontal: 16,
+  backgroundColor: "#ffffff",
+  borderRadius: 14,
+  elevation: 3, // Android shadow
+  shadowColor: "#000",
+  shadowOpacity: 0.08,
+  shadowRadius: 6,
+  shadowOffset: { width: 0, height: 3 },
+},
+
   introText: {
     fontSize: 15,
     color: "#1e293b",
@@ -896,16 +920,20 @@ const s = StyleSheet.create({
     lineHeight: 20,
   },
 
-  bookingBtn: {
-    alignSelf: "center",
-    width: "75%",
-    borderRadius: 10,
-    overflow: "hidden",
-  },
+bookingBtn: {
+  alignSelf: "center",
+  width: "75%",      // keep button nicely centered
+  borderRadius: 10,
+  overflow: "hidden",
+},
+
   bookingBtnText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
     textAlign: "center",
   },
+
+
+
 });
