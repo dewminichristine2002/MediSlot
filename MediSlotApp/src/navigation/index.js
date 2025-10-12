@@ -34,9 +34,8 @@ import BookingHistoryScreen from "../screens/BookingHistoryScreen";
 import PaymentDetailsScreen from "../screens/PaymentDetailsScreen";
 import BookingSuccessScreen from "../screens/BookingSuccessScreen";
 // Lab Tests (Guidelines) flow
-import TestCategoriesScreen from '../screens/Guidelines/TestCategoriesScreen';
-import TestListScreen from '../screens/Guidelines/TestListScreen';
-import TestDetailsScreen from '../screens/Guidelines/TestDetailsScreen';
+
+
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();

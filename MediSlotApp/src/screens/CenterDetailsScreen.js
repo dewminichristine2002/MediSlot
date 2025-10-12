@@ -1,5 +1,5 @@
 // src/screens/CenterDetailsScreen.js
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -9,10 +9,15 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Linking,
+  Platform,
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, Polyline } from "react-native-maps";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
+import axios from "axios";
+import Constants from "expo-constants";
 
 import { useAuth } from "../context/AuthContext";
 import { fetchCenterTests } from "../api/centers";
@@ -122,7 +127,7 @@ function decodePolyline(encoded) {
 
     points.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
   }
-  return null;
+  return points;
 }
 
 /* ---------- Route preview ---------- */
@@ -243,7 +248,6 @@ export default function CenterDetailsScreen({ route, navigation }) {
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // fail fast if route missing
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
     if (!center) {
@@ -252,7 +256,6 @@ export default function CenterDetailsScreen({ route, navigation }) {
     }
   }, [navigation, center]);
 
-  // load tests for this center
   useEffect(() => {
     if (!center?._id) return;
     (async () => {
@@ -267,7 +270,6 @@ export default function CenterDetailsScreen({ route, navigation }) {
     })();
   }, [center?._id, token]);
 
-  // --- Directions: Google Maps first everywhere ---
   const openExternalDirections = async () => {
     const ll = getLatLng(center);
     const addr = formatAddress(center.address)?.trim();
@@ -293,13 +295,11 @@ export default function CenterDetailsScreen({ route, navigation }) {
             `comgooglemaps://?saddr=&daddr=${dest}&directionsmode=driving`
           );
         }
-        // Fallback to Google Maps on the web
         return Linking.openURL(
           `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`
         );
       }
 
-      // Android
       return Linking.openURL(
         `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`
       );
@@ -317,9 +317,10 @@ export default function CenterDetailsScreen({ route, navigation }) {
             {item.what}
           </Text>
         ) : null}
+
         <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={[styles.softBtn, { flex: 1 }]}
+          <SoftButton
+            style={{ flex: 1 }}
             onPress={() =>
               navigation.navigate("NewBooking", {
                 centerId: center._id,
@@ -329,14 +330,15 @@ export default function CenterDetailsScreen({ route, navigation }) {
           >
             Book Now
           </SoftButton>
+
           <SoftButton
             style={{ flex: 1 }}
             onPress={() =>
               navigation.navigate("TestDetails", { test: item, center })
             }
           >
-            <Text style={styles.softBtnText}>More Details</Text>
-          </TouchableOpacity>
+            More Details
+          </SoftButton>
         </View>
       </View>
 
@@ -350,7 +352,6 @@ export default function CenterDetailsScreen({ route, navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: THEME.bg }}>
-      {/* Header */}
       <LinearGradient
         colors={THEME.brand}
         start={{ x: 0, y: 0 }}
@@ -361,7 +362,6 @@ export default function CenterDetailsScreen({ route, navigation }) {
         <Text style={styles.headerSub}>{center?.name ?? ""}</Text>
       </LinearGradient>
 
-      {/* Back */}
       <View style={styles.backRow}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -375,7 +375,6 @@ export default function CenterDetailsScreen({ route, navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        {/* Top card */}
         <Card>
           <Text style={styles.centerTitle}>{center.name}</Text>
           <Text style={styles.centerSub}>{formatAddress(center.address)}</Text>
@@ -393,9 +392,8 @@ export default function CenterDetailsScreen({ route, navigation }) {
               Directions
             </GradientButton>
           </View>
-        ) : null}
+        </Card>
 
-        {/* Tests */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Available Tests</Text>
           {loading ? (
