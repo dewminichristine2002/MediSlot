@@ -1,9 +1,10 @@
+// src/App.jsx
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-// 🌿 Main Pages
+// Admin pages
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import HomePage from "./pages/HomePage";
@@ -11,21 +12,26 @@ import FreeEventsPage from "./pages/FreeEventsPage";
 import GuidelinesPage from "./pages/GuidelinesPage";
 import CentersPage from "./pages/CentersPage";
 
-// 🌿 Health Center Pages
+// Health center (use nested routes)
+import HCMeRouter from "./pages/HCMeRouter";
+import HCLayout from "./pages/HCLayout";
+
+// Reuse your existing pages as children
 import HealthCenterHome from "./pages/HealthCenterHome";
 import HealthCenterBookings from "./pages/HealthCenterBookings";
 import HealthCenterDetails from "./pages/HealthCenterDetails";
+import TestsList from "./components/TestsList";
 
-function App() {
+export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Public Routes */}
+          {/* Public */}
           <Route path="/" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
-          {/* Admin Routes (Protected) */}
+          {/* Admin-only app (protected) */}
           <Route
             path="/home"
             element={
@@ -59,35 +65,44 @@ function App() {
             }
           />
 
-          {/* Health Center Routes (Protected) */}
+          {/* --- Health center space --- */}
+
+          {/* Backward-compat: old URL -> "me" */}
           <Route
             path="/healthcenter/home"
-            element={
-              <ProtectedRoute>
-                <HealthCenterHome />
-              </ProtectedRoute>
-            }
+            element={<Navigate to="/healthcenter/me" replace />}
           />
+
+          {/* Resolve my center via /api/centers/me then redirect to /healthcenter/:centerId/home */}
           <Route
-            path="/healthcenter/bookings"
+            path="/healthcenter/me"
             element={
               <ProtectedRoute>
-                <HealthCenterBookings />
+                <HCMeRouter />
               </ProtectedRoute>
             }
           />
+
+          {/* Nested per-center routes */}
           <Route
-            path="/healthcenter/details"
+            path="/healthcenter/:centerId"
             element={
               <ProtectedRoute>
-                <HealthCenterDetails />
+                <HCLayout />
               </ProtectedRoute>
             }
-          />
+          >
+            <Route index element={<Navigate to="home" replace />} />
+            <Route path="home" element={<HealthCenterHome />} />
+            <Route path="bookings" element={<HealthCenterBookings />} />
+            <Route path="tests" element={<TestsList />} />
+            <Route path="details" element={<HealthCenterDetails />} />
+          </Route>
+
+          {/* Default fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
   );
 }
-
-export default App;
