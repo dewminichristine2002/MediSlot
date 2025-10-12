@@ -189,17 +189,15 @@ export default function ProfileScreen({ route }) {
               icon="clipboard-outline"
               active={false}
               label="My Bookings"
-              onPress={() => {
-                // handle navigation or toggle
-              }}
+              onPress={() => navigation.navigate("HomeTab", { screen: "BookingHistory" })}
             />
             <SegmentButton
               icon="checkmark-done-outline"
               active={false}
               label="My Check List"
-              onPress={() => {
+              onPress={() => { 
                 // handle navigation or toggle
-              }}
+                 }}
             />
           </View>
         </View>
@@ -453,11 +451,10 @@ function MyEventRegs() {
   );
 }
 
-/* ------------------ My Lab Test Results ------------------ */
+/* ------------------ lab test results ------------------ */
 function MyLabTestResults() {
   const { user } = useAuth();
   const userId = user?._id;
-
   const [loading, setLoading] = useState(true);
   const [results, setResults] = useState([]);
   const [downloadingId, setDownloadingId] = useState(null);
@@ -465,22 +462,25 @@ function MyLabTestResults() {
   const makeAbsUrl = (urlOrPath) => {
     if (!urlOrPath) return null;
     if (/^https?:\/\//i.test(urlOrPath)) return urlOrPath;
-    const base = getApiBaseUrl().replace(/\/+$/, '');
-    return `${base}/${urlOrPath.replace(/^\/+/, '')}`;
+    const base = getApiBaseUrl().replace(/\/+$/, "");
+    return `${base}/${urlOrPath.replace(/^\/+/, "")}`;
   };
 
   const viewReport = async (rawUrl, id) => {
     try {
-      const url = makeAbsUrl(rawUrl) || `${getApiBaseUrl()}/api/lab-tests/${id}/download`;
+      let url = makeAbsUrl(rawUrl) || `${getApiBaseUrl()}/api/lab-tests/${id}/download`;
+      if (url.includes("/image/upload/") && url.endsWith(".pdf")) {
+        url = url.replace("/image/upload/", "/raw/upload/");
+      }
       await WebBrowser.openBrowserAsync(url);
     } catch {
-      Alert.alert('Unable to open', 'Could not open the report link.');
+      Alert.alert("Unable to open", "Could not open the report link.");
     }
   };
 
-  const guessExt = (s = '') => {
+  const guessExt = (s = "") => {
     const m = s.match(/\.(pdf|png|jpe?g|webp|heic|gif|tiff)(\?.*)?$/i);
-    return m ? `.${m[1].toLowerCase()}` : '.pdf';
+    return m ? `.${m[1].toLowerCase()}` : ".pdf";
   };
 
   const downloadReport = async (rawUrl, id, displayName) => {
@@ -488,7 +488,7 @@ function MyLabTestResults() {
     try {
       const url = makeAbsUrl(rawUrl) || `${getApiBaseUrl()}/api/lab-tests/${id}/download`;
       const ext = guessExt(url);
-      const safeName = (displayName || 'report').replace(/[^\w\-]+/g, '_');
+      const safeName = (displayName || "report").replace(/[^\w\-]+/g, "_");
       const localUri = `${FileSystem.documentDirectory}${safeName}${ext}`;
 
       const { status, uri } = await FileSystem.downloadAsync(url, localUri);
@@ -497,10 +497,10 @@ function MyLabTestResults() {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri);
       } else {
-        Alert.alert('Downloaded', `Saved to: ${uri}`);
+        Alert.alert("Downloaded", `Saved to: ${uri}`);
       }
     } catch (e) {
-      Alert.alert('Download failed', e?.message || 'Could not download the report.');
+      Alert.alert("Download failed", e?.message || "Could not download the report.");
     } finally {
       setDownloadingId(null);
     }
@@ -515,30 +515,26 @@ function MyLabTestResults() {
 
     (async () => {
       try {
-        const t = await AsyncStorage.getItem('token');
-        let res = await fetch(
-          `${getApiBaseUrl()}/api/lab-tests/user/${encodeURIComponent(userId)}`,
-          { headers: { Authorization: `Bearer ${t}` } }
-        );
+        const t = await AsyncStorage.getItem("token");
+        let res = await fetch(`${getApiBaseUrl()}/api/lab-tests/user/${encodeURIComponent(userId)}`, {
+          headers: { Authorization: `Bearer ${t}` },
+        });
         if (res.status === 404) {
-          res = await fetch(
-            `${getApiBaseUrl()}/api/lab-tests?user_id=${encodeURIComponent(userId)}`,
-            { headers: { Authorization: `Bearer ${t}` } }
-          );
+          res = await fetch(`${getApiBaseUrl()}/api/lab-tests?user_id=${encodeURIComponent(userId)}`, {
+            headers: { Authorization: `Bearer ${t}` },
+          });
         }
         if (res.ok) {
           const data = await res.json();
           const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
           setResults(items.filter((r) => (r?.user_id?._id || r?.user_id || r?.userId) === userId));
-          await AsyncStorage.setItem('my_lab_results', JSON.stringify(items));
-          setLoading(false);
-          return;
+          await AsyncStorage.setItem("my_lab_results", JSON.stringify(items));
+        } else {
+          const localStr = await AsyncStorage.getItem("my_lab_results");
+          setResults(localStr ? JSON.parse(localStr) : []);
         }
-
-        const localStr = await AsyncStorage.getItem('my_lab_results');
-        setResults(localStr ? JSON.parse(localStr) : []);
       } catch {
-        const localStr = await AsyncStorage.getItem('my_lab_results');
+        const localStr = await AsyncStorage.getItem("my_lab_results");
         setResults(localStr ? JSON.parse(localStr) : []);
       } finally {
         setLoading(false);
@@ -574,7 +570,7 @@ function MyLabTestResults() {
         contentContainerStyle={{ gap: 12 }}
         scrollEnabled={false}
         renderItem={({ item }) => {
-          const testName = item?.testOrEvent_name || item?.test?.name || 'Lab Test';
+          const testName = item?.testOrEvent_name || "Lab Test";
           const uploadedAt = item?.uploaded_at || item?.createdAt;
           const rawFileUrl =
             item?.file_path || item?.result_file_url || item?.pdf_url || item?.reportUrl;
@@ -582,22 +578,17 @@ function MyLabTestResults() {
           return (
             <LinearGradient colors={[C.g1, C.g2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cardOutline}>
               <View style={styles.cardRow}>
-                <View style={[styles.accent, { backgroundColor: '#9CC2FF' }]} />
-
+                <View style={[styles.accent, { backgroundColor: "#9CC2FF" }]} />
                 <View style={styles.cardBody}>
                   <View style={styles.cardTop}>
                     <Text style={styles.eventName}>{testName}</Text>
-                    <View style={[styles.pill, { backgroundColor: '#ECF3FF', borderColor: '#C9D9FF' }]}>
-                      <Text style={[styles.pillText, { color: '#3B82F6' }]}>REPORT</Text>
+                    <View style={[styles.pill, { backgroundColor: "#ECF3FF", borderColor: "#C9D9FF" }]}>
+                      <Text style={[styles.pillText, { color: "#3B82F6" }]}>REPORT</Text>
                     </View>
                   </View>
-
                   {!!uploadedAt && (
-                    <Text style={styles.meta}>
-                      Uploaded: {new Date(uploadedAt).toLocaleDateString()}
-                    </Text>
+                    <Text style={styles.meta}>Uploaded: {new Date(uploadedAt).toLocaleDateString()}</Text>
                   )}
-
                   <View style={styles.actionsRow}>
                     <TouchableOpacity style={styles.softBtn} onPress={() => viewReport(rawFileUrl, item._id)}>
                       <Ionicons name="open-outline" size={16} color={C.success} style={{ marginRight: 6 }} />

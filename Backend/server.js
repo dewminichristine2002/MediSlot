@@ -1,23 +1,58 @@
 // server.js
+const dotenv = require('dotenv');
+dotenv.config();
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const fs = require('fs');
 const path = require('path');
 
-dotenv.config();
+
 
 const app = express();
+//--Booking
+const Booking = require("./models/Booking");
+const paymentsController = require("./controllers/paymentsController");
 
 // --- Core middleware (once) ---
 app.use(cors({ origin: true, credentials: true }));
+
+app.post(
+  "/api/payments/webhook",
+  express.raw({ type: "application/json" }),
+  paymentsController.webhook
+);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// --- Tiny request logger ---
+app.use((req, _res, next) => {
+  console.log(new Date().toISOString(), req.method, req.originalUrl);
+  next();
+});
+
 
 // --- Health checks (once) ---
 app.get("/", (_req, res) => res.send("OK"));
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
+
+//--- DB Health check ---
+app.get("/db-health", async (_req, res) => {
+  try {
+    const states = ["disconnected", "connected", "connecting", "disconnecting"];
+    const rs = mongoose.connection.readyState;
+    if (rs === 1 && mongoose.connection.db) {
+      await mongoose.connection.db.admin().ping();
+      return res.json({ state: states[rs] || rs, ping: "ok" });
+    }
+    return res
+      .status(500)
+      .json({ state: states[rs] || rs, ping: "skip", hint: "not connected" });
+  } catch (e) {
+    return res.status(500).json({ state: "error", error: e.message });
+  }
+});
 
 // --- Ensure uploads dir and serve static ---
 const uploadsRoot = path.join(__dirname, 'uploads');
@@ -41,9 +76,6 @@ app.use("/api/user-checklists", require("./routes/LabTests/userChecklistRoutes")
 // Keep ONE tests route. If you want the generic tests CRUD, use this:
 app.use("/api/tests", require("./routes/tests.routes"));
 
-// If you actually need LabTests-specific endpoints (different from above),
-// keep this but give it a DIFFERENT base path to avoid collision, e.g.:
-// app.use("/api/lab-tests-meta", require("./routes/LabTests/labTestRoutes"));
 
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/centers", require("./routes/centers.routes"));
@@ -58,6 +90,12 @@ app.use('/api/eventLabNotifications', require('./routes/freeEventsRoutes/eventLa
 
 
 
+// Users, Bookings, Payments, Browse
+app.use("/api/users", require("./routes/userRoutes"));
+app.use("/api/bookings", require("./routes/bookings"));
+app.use("/api/payments", require("./routes/payments"));
+app.use("/api/browse", require("./routes/browse"));
+
 // --- 404 for unknown API routes ---
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {
@@ -71,6 +109,16 @@ app.use((err, _req, res, _next) => {
   const status = err.status || 400;
   const message = err.message || 'Request error';
   return res.status(status).json({ message });
+});
+
+// Global Error Handler
+app.use((err, req, res, _next) => {
+  console.error("🟥 Global Error:", err);
+  const status = err.statusCode || err.status || 500;
+  res.status(status).json({
+    message: err.message || "Internal Server Error",
+    stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+  });
 });
 
 const PORT = process.env.PORT || 5000;

@@ -6,9 +6,9 @@ const Event = require('../../models/Event');
 
 const isValidId = (id) => mongoose.isValidObjectId(id);
 
-// ---------- helpers ----------
 async function adjustEventSlots(eventId, fromStatus, toStatus, session) {
-  const occupies = (s) => s === 'confirmed';
+  // ✅ Count both 'confirmed' and 'attended' as occupying slots
+  const occupies = (s) => ['confirmed', 'attended'].includes(s);
   if (occupies(fromStatus) === occupies(toStatus)) return;
 
   const inc = occupies(toStatus) ? 1 : -1;
@@ -32,6 +32,7 @@ async function adjustEventSlots(eventId, fromStatus, toStatus, session) {
     throw e;
   }
 }
+
 
 /** Promote the oldest waitlisted registration to confirmed if capacity exists. */
 async function promoteFromWaitlist(eventId, session) {
