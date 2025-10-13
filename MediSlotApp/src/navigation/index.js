@@ -34,6 +34,9 @@ import NewBookingScreen from "../screens/NewBookingScreen";
 import BookingHistoryScreen from "../screens/BookingHistoryScreen";
 import PaymentDetailsScreen from "../screens/PaymentDetailsScreen";
 import BookingSuccessScreen from "../screens/BookingSuccessScreen";
+// Lab Tests (Guidelines) flow
+
+
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();

@@ -57,7 +57,7 @@ export default function FreeEventsPage() {
   // ✅ Load Centers
   const loadHealthCenters = async () => {
     try {
-      const res = await api.get("/healthcenters/names");
+      const res = await api.get("/centers/names");
       setHealthCenters(res.data || []);
     } catch (e) {
       console.error("Failed to load health centers:", e);

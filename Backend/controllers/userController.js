@@ -1,18 +1,21 @@
-// controllers/userController.js
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/User');
 
-// Helper to sign JWT
 function signToken(user) {
   return jwt.sign(
-    { sub: user._id.toString(), role: user.user_category },
+    {
+      sub: user._id.toString(),
+      role: user.user_category,
+      centerId: user.center ? user.center.toString() : null, // ✅ expose centerId in JWT
+      email: user.email,
+      name: user.name,
+    },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES || '7d' }
   );
 }
 
-// Shape safe user response (no password)
 function toPublicUser(u) {
   const obj = u.toObject ? u.toObject() : u;
   delete obj.password;
@@ -24,7 +27,7 @@ function toPublicUser(u) {
  */
 exports.register = async (req, res) => {
   try {
-    const { email, contact_no, name, password, address, user_category } = req.body;
+    const { email, contact_no, name, password, address, user_category, center } = req.body;
 
     const user = await User.create({
       email,
@@ -33,13 +36,13 @@ exports.register = async (req, res) => {
       password,
       address,
       user_category,
+      center: center || undefined,
     });
 
     const token = signToken(user);
     return res.status(201).json({ token, user: toPublicUser(user) });
   } catch (err) {
     if (err?.code === 11000) {
-      // duplicate key (email/contact)
       const field = Object.keys(err.keyPattern || {})[0] || 'field';
       return res.status(409).json({ message: `Duplicate ${field}` });
     }
@@ -61,10 +64,12 @@ exports.login = async (req, res) => {
     if (!ok) return res.status(401).json({ message: 'Invalid credentials' });
 
     const token = signToken(user);
-    // hide password before sending
     user.password = undefined;
 
-    return res.json({ token, user: toPublicUser(user) });
+    const safe = toPublicUser(user);
+    safe.centerId = user.center ? user.center.toString() : null; // ✅ mirror centerId in response
+
+    return res.json({ token, user: safe });
   } catch (err) {
     return res.status(400).json({ message: 'Login failed', error: err.message });
   }
@@ -79,7 +84,6 @@ exports.me = async (req, res) => {
 
 /**
  * PATCH /api/users/me
- * Editable: name, contact_no, address
  */
 exports.updateMe = async (req, res) => {
   try {
@@ -129,7 +133,6 @@ exports.changePassword = async (req, res) => {
 
 /**
  * GET /api/users (admin)
- * Query: page, limit, q, category
  */
 exports.list = async (req, res) => {
   try {
@@ -140,7 +143,6 @@ exports.list = async (req, res) => {
     const f = {};
     if (req.query.category) f.user_category = req.query.category;
 
-    // simple text filter on name/email/contact
     if (req.query.q) {
       const rx = new RegExp(req.query.q.trim(), 'i');
       f.$or = [{ name: rx }, { email: rx }, { contact_no: rx }];
@@ -158,14 +160,13 @@ exports.list = async (req, res) => {
 };
 
 /**
- * GET /api/users/:id (admin or owner)
+ * GET /api/users/:id
  */
 exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid id' });
 
-    // owner or admin
     if (req.user.user_category !== 'admin' && req.user._id.toString() !== id) {
       return res.status(403).json({ message: 'Forbidden' });
     }
@@ -181,14 +182,13 @@ exports.getById = async (req, res) => {
 
 /**
  * PATCH /api/users/:id (admin)
- * Admin can update: name, contact_no, address, user_category
  */
 exports.updateByAdmin = async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid id' });
 
-    const allowed = ['name', 'contact_no', 'address', 'user_category'];
+    const allowed = ['name', 'contact_no', 'address', 'user_category', 'center'];
     const update = {};
     for (const k of allowed) if (k in req.body) update[k] = req.body[k];
 

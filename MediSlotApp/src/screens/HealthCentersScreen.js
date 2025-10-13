@@ -32,7 +32,6 @@ const THEME = {
 const QUICK = {
   NONE: "none",
   NEAREST: "nearest",
-  OPENING: "opening",
   POPULAR: "popular",
 };
 
@@ -106,7 +105,7 @@ export default function HealthCentersScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
 
   const [nameQ, setNameQ] = useState("");
-  const [radiusKm, setRadiusKm] = useState(0); // 0=all, 5, 10
+  const [radiusKm, setRadiusKm] = useState(0); // 0 = all (radius filter removed for other values)
   const [quick, setQuick] = useState(QUICK.NONE);
   const [error, setError] = useState("");
 
@@ -160,16 +159,6 @@ export default function HealthCentersScreen({ navigation }) {
 
     if (quick === QUICK.NEAREST) {
       list = [...list].sort((a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9)).slice(0, 1);
-    } else if (quick === QUICK.OPENING) {
-      list = list.filter((c) => c.openingSoon);
-      const now = nowMinutesColombo();
-      list.sort((a, b) => {
-        const oa = parseHM(a.opening_time) ?? 1e9;
-        const ob = parseHM(b.opening_time) ?? 1e9;
-        const da = (oa - now + 1440) % 1440;
-        const db = (ob - now + 1440) % 1440;
-        return da - db;
-      });
     } else if (quick === QUICK.POPULAR) {
       list = [...list].sort((a, b) => popularityScore(b) - popularityScore(a)).slice(0, 3);
     } else {
@@ -266,16 +255,16 @@ export default function HealthCentersScreen({ navigation }) {
           onChangeText={setNameQ}
         />
 
-        {/* Radius chips */}
+        {/* Radius chips (only 'All' kept) */}
         <View style={{ flexDirection: "row", marginTop: 10 }}>
-          {[0, 5, 10].map((km) => (
+          {[0].map((km) => (
             <TouchableOpacity
               key={km}
-              onPress={() => setRadiusKm(km)}
+              onPress={() => { setRadiusKm(km); setQuick(QUICK.NONE); }}
               style={[styles.pill, radiusKm === km && styles.pillActive]}
             >
               <Text style={[styles.pillText, radiusKm === km && styles.pillTextActive]}>
-                {km === 0 ? "All" : `≤ ${km} km`}
+                {"All"}
               </Text>
             </TouchableOpacity>
           ))}
@@ -292,14 +281,7 @@ export default function HealthCentersScreen({ navigation }) {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => setQuick(QUICK.OPENING)}
-            style={[styles.sortChip, quick === QUICK.OPENING && styles.sortChipActive]}
-          >
-            <Text style={[styles.sortChipText, quick === QUICK.OPENING && styles.sortChipTextActive]}>
-              Opening soon
-            </Text>
-          </TouchableOpacity>
+          {/* Opening soon filter removed per request */}
 
           <TouchableOpacity
             onPress={() => setQuick(QUICK.POPULAR)}

@@ -47,27 +47,8 @@ export default function ProfileScreen({ route }) {
   const navigation = useNavigation();
   const { user } = useAuth();
 
-  // -------- NEW: role gate
   const role = (user?.user_category || '').toLowerCase();
-  const isAdmin = role === 'admin' || role === 'superadmin' || role === 'manager';
-
-  const canGoTo = useCallback(
-    (routeName) => navigation.getState()?.routeNames?.includes(routeName),
-    [navigation]
-  );
-
-  const handleBack = useCallback(() => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    if (canGoTo('Home')) {
-      navigation.navigate('Home');
-      return;
-    }
-    const first = navigation.getState()?.routeNames?.[0];
-    if (first) navigation.navigate(first);
-  }, [navigation, canGoTo]);
+  const isAdmin = ['admin', 'superadmin', 'manager'].includes(role);
 
   const [showRegs, setShowRegs] = useState(true);
   const [showLab, setShowLab] = useState(false);
@@ -83,9 +64,14 @@ export default function ProfileScreen({ route }) {
   }, [route?.params?.openLab, isAdmin]);
 
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60 * 1000);
+    const id = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(id);
   }, []);
+
+  const handleBack = () => {
+    if (navigation.canGoBack()) navigation.goBack();
+    else navigation.navigate('Home');
+  };
 
   const getGreeting = () => {
     const h = now.getHours();
@@ -93,13 +79,6 @@ export default function ProfileScreen({ route }) {
     if (h < 18) return 'Good afternoon';
     return 'Good evening';
   };
-  const dateStr = now.toLocaleDateString(undefined, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const initials =
     (user?.name || '')
@@ -109,11 +88,17 @@ export default function ProfileScreen({ route }) {
       .map((s) => s[0]?.toUpperCase())
       .join('') || 'U';
 
+  const dateStr = now.toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      {/* Header (gradient) */}
       <LinearGradient colors={[C.g1, C.g2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
-        {/* Back arrow */}
         <Pressable onPress={handleBack} hitSlop={10} style={styles.headerBack}>
           <Ionicons name="chevron-back" size={26} color="#fff" />
         </Pressable>
@@ -122,7 +107,6 @@ export default function ProfileScreen({ route }) {
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initials}</Text>
           </View>
-
           <View style={styles.headerTextBlock}>
             <Text style={styles.title}>
               {getGreeting()}, {user?.name || 'User'}!
@@ -130,7 +114,6 @@ export default function ProfileScreen({ route }) {
             <Text style={styles.subTitle}>
               {dateStr} • {timeStr}
             </Text>
-
             <View style={styles.roleBadge}>
               <Ionicons name="person-circle-outline" size={14} color={C.primary} />
               <Text style={styles.roleBadgeText}>{user?.user_category || 'User'}</Text>
@@ -138,74 +121,64 @@ export default function ProfileScreen({ route }) {
           </View>
         </View>
 
-        {/* Compact details card */}
         <View style={styles.kvWrap}>
           <View style={styles.kvRow}>
             <Text style={styles.kKey}>Name</Text>
-            <Text style={styles.kVal} numberOfLines={1}>{user?.name || '-'}</Text>
+            <Text style={styles.kVal}>{user?.name || '-'}</Text>
           </View>
           <View style={styles.kvRow}>
             <Text style={styles.kKey}>Email</Text>
-            <Text style={styles.kVal} numberOfLines={1}>{user?.email || '-'}</Text>
+            <Text style={styles.kVal}>{user?.email || '-'}</Text>
           </View>
           <View style={styles.kvRow}>
             <Text style={styles.kKey}>Phone</Text>
-            <Text style={styles.kVal} numberOfLines={1}>{user?.contact_no || '-'}</Text>
+            <Text style={styles.kVal}>{user?.contact_no || '-'}</Text>
           </View>
           <View style={[styles.kvRow, { borderBottomWidth: 0 }]}>
             <Text style={styles.kKey}>Address</Text>
-            <Text style={styles.kVal} numberOfLines={1}>{user?.address || '-'}</Text>
+            <Text style={styles.kVal}>{user?.address || '-'}</Text>
           </View>
         </View>
 
-        {/* Segmented control — HIDE for admins */}
         {!isAdmin && (
-        <View style={styles.segmentWrapper}>
-          {/* Top Row */}
-          <View style={styles.segment}>
-            <SegmentButton
-              icon="calendar-outline"
-              active={showRegs}
-              label="Event Registrations"
-              onPress={() => {
-                setShowRegs(true);
-                setShowLab(false);
-              }}
-            />
-            <SegmentButton
-              icon="flask-outline"
-              active={showLab}
-              label="Lab Test Results"
-              onPress={() => {
-                setShowLab(true);
-                setShowRegs(false);
-              }}
-            />
-          </View>
+          <View style={styles.segmentWrapper}>
+            <View style={styles.segment}>
+              <SegmentButton
+                icon="calendar-outline"
+                active={showRegs}
+                label="Event Registrations"
+                onPress={() => {
+                  setShowRegs(true);
+                  setShowLab(false);
+                }}
+              />
+              <SegmentButton
+                icon="flask-outline"
+                active={showLab}
+                label="Lab Test Results"
+                onPress={() => {
+                  setShowLab(true);
+                  setShowRegs(false);
+                }}
+              />
+            </View>
 
-          {/* Bottom Row with two new buttons */}
-          <View style={styles.segment}>
-            <SegmentButton
-              icon="clipboard-outline"
-              active={false}
-              label="My Bookings"
-              onPress={() => navigation.navigate("HomeTab", { screen: "BookingHistory" })}
-            />
-            <SegmentButton
-              icon="checkmark-done-outline"
-              active={false}
-              label="My Check List"
-           
-               onPress={() => navigation.navigate("MyChecklist")}
-                 
-            />
+            <View style={styles.segment}>
+              <SegmentButton
+                icon="clipboard-outline"
+                label="My Bookings"
+                onPress={() => navigation.navigate('HomeTab', { screen: 'BookingHistory' })}
+              />
+              <SegmentButton
+                icon="checkmark-done-outline"
+                label="My Check List"
+                onPress={() => navigation.navigate('UserChecklist')}
+              />
+            </View>
           </View>
-        </View>
-      )}
-
+        )}
       </LinearGradient>
 
-      {/* Body */}
       <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ padding: 18, paddingTop: 0 }}>
         {isAdmin ? (
           <View style={styles.stateBox}>
@@ -225,132 +198,82 @@ export default function ProfileScreen({ route }) {
   );
 }
 
-/* Segmented buttons */
+/* Segmented Button */
 function SegmentButton({ active, label, icon, onPress }) {
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.95}
-      style={[styles.segmentBtn, active && styles.segmentBtnActive]}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-    >
-      <Ionicons
-        name={icon}
-        size={16}
-        color={active ? C.primary : C.text}
-        style={{ marginRight: 6, opacity: active ? 1 : 0.8 }}
-      />
+    <TouchableOpacity onPress={onPress} activeOpacity={0.95} style={[styles.segmentBtn, active && styles.segmentBtnActive]}>
+      <Ionicons name={icon} size={16} color={active ? C.primary : C.text} style={{ marginRight: 6 }} />
       <Text style={[styles.segmentText, active && { color: C.primary, fontWeight: '800' }]}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-/* ------------------ Event Registrations ------------------ */
+/* ------------------ MyEventRegs (Detailed) ------------------ */
 function MyEventRegs() {
   const { user } = useAuth();
   const patientId = user?._id;
-
   const [loading, setLoading] = useState(true);
   const [regs, setRegs] = useState([]);
 
-  const sortByUpcomingFirst = (arr) => {
-    const items = Array.isArray(arr) ? [...arr] : [];
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+  const cancelRegistration = async (registration_id) => {
+  try {
+    const t = await AsyncStorage.getItem('token');
+    if (!t) throw new Error('Not authenticated');
 
-    const upcoming = [];
-    const past = [];
-    const noDate = [];
+    const res = await fetch(
+      `${getApiBaseUrl()}/api/event-registrations/${registration_id}/cancel`,
+      {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${t}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-    for (const it of items) {
-      const d = it?.event_date ? new Date(it.event_date) : null;
-      if (!d || isNaN(d.getTime())) noDate.push(it);
-      else if (d >= todayStart) upcoming.push(it);
-      else past.push(it);
-    }
-
-    upcoming.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
-    past.sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
-    return [...upcoming, ...past, ...noDate];
-  };
+    if (!res.ok) throw new Error('Cancel failed');
+    Alert.alert('Cancelled', 'Your registration was cancelled.');
+    await refresh(); // re-fetch updated list
+  } catch (e) {
+    Alert.alert('Error', e.message || 'Could not cancel registration.');
+  }
+};
 
   const refresh = async () => {
     try {
       const t = await AsyncStorage.getItem('token');
-      if (!t) throw new Error('No token');
-
-      const url = `${getApiBaseUrl()}/api/event-registrations/events-by-user/me?when=all&page=1&limit=50&sort=event.date&order=desc`;
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${t}` } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
+      const res = await fetch(`${getApiBaseUrl()}/api/event-registrations/events-by-user/me`, {
+        headers: { Authorization: `Bearer ${t}` },
+      });
       const data = await res.json();
-      const items = Array.isArray(data?.items) ? data.items : [];
-      const sorted = sortByUpcomingFirst(items);
-      setRegs(sorted);
-      await AsyncStorage.setItem('my_event_regs', JSON.stringify(sorted));
+      setRegs(Array.isArray(data?.items) ? data.items : []);
     } catch {
-      const localStr = await AsyncStorage.getItem('my_event_regs');
-      const local = localStr ? JSON.parse(localStr) : [];
-      setRegs(sortByUpcomingFirst(local));
+      setRegs([]);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (!patientId) {
-      setRegs([]);
-      setLoading(false);
-      return;
-    }
-    refresh();
-  }, [patientId]);
+  useFocusEffect(useCallback(() => { refresh(); }, []));
 
-  useFocusEffect(
-    useCallback(() => {
-      if (patientId) refresh();
-    }, [patientId])
-  );
-
-  const cancelRegistration = async (registration_id) => {
-    try {
-      const t = await AsyncStorage.getItem('token');
-      if (!t) throw new Error('Not authenticated');
-
-      const res = await fetch(
-        `${getApiBaseUrl()}/api/event-registrations/${registration_id}/cancel`,
-        { method: 'PATCH', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' } }
-      );
-
-      if (!res.ok) throw new Error('Cancel failed');
-      Alert.alert('Cancelled', 'Your registration was cancelled.');
-      await refresh();
-    } catch (e) {
-      Alert.alert('Error', e.message || 'Could not cancel');
-    }
-  };
-
-  if (loading) {
+  if (loading)
     return (
       <View style={styles.stateBox}>
         <ActivityIndicator size="small" color={C.primary} />
         <Text style={styles.stateText}>Loading registrations…</Text>
       </View>
     );
-  }
 
-  if (!regs.length) {
+  if (!regs.length)
     return (
       <View style={styles.stateBox}>
         <Ionicons name="calendar-outline" size={22} color={C.sub} />
         <Text style={[styles.stateText, { marginTop: 6 }]}>No event registrations yet.</Text>
       </View>
     );
-  }
 
   const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   const pillStyle = (status) => {
     if (status === 'confirmed' || status === 'registered')
@@ -367,39 +290,29 @@ function MyEventRegs() {
   return (
     <View style={{ marginTop: 14 }}>
       <Text style={styles.sectionTitle}>My Event Registrations</Text>
-
       <FlatList
         data={regs}
-        keyExtractor={(item, idx) => String(item?.registration_id ?? item?._id ?? `reg-${idx}`)}
+        keyExtractor={(item, idx) => String(item?._id ?? `reg-${idx}`)}
         contentContainerStyle={{ gap: 12 }}
         scrollEnabled={false}
         renderItem={({ item }) => {
-          const eventDate = item?.event_date ? new Date(item.event_date) : null;
-          const hideCancel =
-            !eventDate ||
-            eventDate < startOfToday ||
-            ['attended', 'cancelled'].includes((item?.registration_status || '').toLowerCase());
-
           const status = (item?.registration_status || '').toLowerCase();
           const pill = pillStyle(status);
+          const eventDate = item?.event_date ? new Date(item.event_date) : null;
+          const hideCancel =
+            !eventDate || eventDate < startOfToday || ['attended', 'cancelled'].includes(status);
 
           return (
-            <LinearGradient colors={[C.g1, C.g2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cardOutline}>
+            <LinearGradient colors={[C.g1, C.g2]} style={styles.cardOutline}>
               <View style={styles.cardRow}>
-                {/* Left accent bar */}
                 <View style={[styles.accent, { backgroundColor: pill.bar }]} />
-
-                {/* Body */}
                 <View style={styles.cardBody}>
                   <View style={styles.cardTop}>
                     <Text style={styles.eventName}>{item?.event_name || 'Event'}</Text>
                     <View style={[styles.pill, { backgroundColor: pill.bg, borderColor: pill.border }]}>
-                      <Text style={[styles.pillText, { color: pill.text }]}>
-                        {(item?.registration_status || 'STATUS').toUpperCase()}
-                      </Text>
+                      <Text style={[styles.pillText, { color: pill.text }]}>{status.toUpperCase()}</Text>
                     </View>
                   </View>
-
                   {!!eventDate && (
                     <Text style={styles.meta}>
                       {eventDate.toLocaleDateString()}
@@ -407,11 +320,7 @@ function MyEventRegs() {
                     </Text>
                   )}
                   {!!item?.event_location && <Text style={styles.meta}>{item.event_location}</Text>}
-                  {status === 'waitlist' && item?.waitlist_position != null && (
-                    <Text style={styles.meta}>Waitlist Position: {item.waitlist_position}</Text>
-                  )}
-
-                  <View style={styles.actionsRow}>
+                   <View style={styles.actionsRow}>
                     {!hideCancel && (
                       <TouchableOpacity style={[styles.softBtn, { backgroundColor: '#FFF4F4', borderColor: '#FAD1D1' }]}
                         onPress={() => cancelRegistration(item.registration_id)}
@@ -421,9 +330,8 @@ function MyEventRegs() {
                       </TouchableOpacity>
                     )}
                   </View>
-                </View>
 
-                {/* QR */}
+                </View>
                 <View style={styles.qrWrap}>
                   {item?.qr_code ? (
                     <Image source={{ uri: item.qr_code }} style={styles.qrImage} />
@@ -451,10 +359,9 @@ function MyEventRegs() {
   );
 }
 
-/* ------------------ lab test results ------------------ */
+/* ------------------ MyLabTestResults (Detailed) ------------------ */
 function MyLabTestResults() {
   const { user } = useAuth();
-  const userId = user?._id;
   const [loading, setLoading] = useState(true);
   const [results, setResults] = useState([]);
   const [downloadingId, setDownloadingId] = useState(null);
@@ -462,25 +369,25 @@ function MyLabTestResults() {
   const makeAbsUrl = (urlOrPath) => {
     if (!urlOrPath) return null;
     if (/^https?:\/\//i.test(urlOrPath)) return urlOrPath;
-    const base = getApiBaseUrl().replace(/\/+$/, "");
-    return `${base}/${urlOrPath.replace(/^\/+/, "")}`;
+    const base = getApiBaseUrl().replace(/\/+$/, '');
+    return `${base}/${urlOrPath.replace(/^\/+/, '')}`;
   };
 
   const viewReport = async (rawUrl, id) => {
     try {
       let url = makeAbsUrl(rawUrl) || `${getApiBaseUrl()}/api/lab-tests/${id}/download`;
-      if (url.includes("/image/upload/") && url.endsWith(".pdf")) {
-        url = url.replace("/image/upload/", "/raw/upload/");
+      if (url.includes('/image/upload/') && url.endsWith('.pdf')) {
+        url = url.replace('/image/upload/', '/raw/upload/');
       }
       await WebBrowser.openBrowserAsync(url);
     } catch {
-      Alert.alert("Unable to open", "Could not open the report link.");
+      Alert.alert('Unable to open', 'Could not open the report link.');
     }
   };
 
-  const guessExt = (s = "") => {
+  const guessExt = (s = '') => {
     const m = s.match(/\.(pdf|png|jpe?g|webp|heic|gif|tiff)(\?.*)?$/i);
-    return m ? `.${m[1].toLowerCase()}` : ".pdf";
+    return m ? `.${m[1].toLowerCase()}` : '.pdf';
   };
 
   const downloadReport = async (rawUrl, id, displayName) => {
@@ -488,113 +395,84 @@ function MyLabTestResults() {
     try {
       const url = makeAbsUrl(rawUrl) || `${getApiBaseUrl()}/api/lab-tests/${id}/download`;
       const ext = guessExt(url);
-      const safeName = (displayName || "report").replace(/[^\w\-]+/g, "_");
+      const safeName = (displayName || 'report').replace(/[^\w\-]+/g, '_');
       const localUri = `${FileSystem.documentDirectory}${safeName}${ext}`;
-
       const { status, uri } = await FileSystem.downloadAsync(url, localUri);
       if (status !== 200) throw new Error(`HTTP ${status}`);
-
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri);
-      } else {
-        Alert.alert("Downloaded", `Saved to: ${uri}`);
-      }
+      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri);
+      else Alert.alert('Downloaded', `Saved to: ${uri}`);
     } catch (e) {
-      Alert.alert("Download failed", e?.message || "Could not download the report.");
+      Alert.alert('Download failed', e?.message || 'Could not download the report.');
     } finally {
       setDownloadingId(null);
     }
   };
 
   useEffect(() => {
-    if (!userId) {
-      setResults([]);
-      setLoading(false);
-      return;
-    }
-
     (async () => {
       try {
-        const t = await AsyncStorage.getItem("token");
-        let res = await fetch(`${getApiBaseUrl()}/api/lab-tests/user/${encodeURIComponent(userId)}`, {
+        const t = await AsyncStorage.getItem('token');
+        const res = await fetch(`${getApiBaseUrl()}/api/lab-tests/user/${encodeURIComponent(user._id)}`, {
           headers: { Authorization: `Bearer ${t}` },
         });
-        if (res.status === 404) {
-          res = await fetch(`${getApiBaseUrl()}/api/lab-tests?user_id=${encodeURIComponent(userId)}`, {
-            headers: { Authorization: `Bearer ${t}` },
-          });
-        }
-        if (res.ok) {
-          const data = await res.json();
-          const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-          setResults(items.filter((r) => (r?.user_id?._id || r?.user_id || r?.userId) === userId));
-          await AsyncStorage.setItem("my_lab_results", JSON.stringify(items));
-        } else {
-          const localStr = await AsyncStorage.getItem("my_lab_results");
-          setResults(localStr ? JSON.parse(localStr) : []);
-        }
+        const data = await res.json();
+        setResults(Array.isArray(data?.items) ? data.items : []);
       } catch {
-        const localStr = await AsyncStorage.getItem("my_lab_results");
-        setResults(localStr ? JSON.parse(localStr) : []);
+        setResults([]);
       } finally {
         setLoading(false);
       }
     })();
-  }, [userId]);
+  }, []);
 
-  if (loading) {
+
+
+
+  if (loading)
     return (
       <View style={styles.stateBox}>
         <ActivityIndicator size="small" color={C.primary} />
         <Text style={styles.stateText}>Loading lab test results…</Text>
       </View>
     );
-  }
 
-  if (!results.length) {
+  if (!results.length)
     return (
       <View style={styles.stateBox}>
         <Ionicons name="flask-outline" size={22} color={C.sub} />
         <Text style={[styles.stateText, { marginTop: 6 }]}>No lab results available yet.</Text>
       </View>
     );
-  }
 
   return (
     <View style={{ marginTop: 14 }}>
       <Text style={styles.sectionTitle}>My Lab Test Results</Text>
-
       <FlatList
         data={results}
         keyExtractor={(item, idx) => item?._id ?? `lab-${idx}`}
         contentContainerStyle={{ gap: 12 }}
         scrollEnabled={false}
         renderItem={({ item }) => {
-          const testName = item?.testOrEvent_name || "Lab Test";
+          const testName = item?.testOrEvent_name || 'Lab Test';
           const uploadedAt = item?.uploaded_at || item?.createdAt;
-          const rawFileUrl =
-            item?.file_path || item?.result_file_url || item?.pdf_url || item?.reportUrl;
-
+          const rawFileUrl = item?.file_path || item?.result_file_url || item?.pdf_url || item?.reportUrl;
           return (
-            <LinearGradient colors={[C.g1, C.g2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cardOutline}>
+            <LinearGradient colors={[C.g1, C.g2]} style={styles.cardOutline}>
               <View style={styles.cardRow}>
-                <View style={[styles.accent, { backgroundColor: "#9CC2FF" }]} />
+                <View style={[styles.accent, { backgroundColor: '#9CC2FF' }]} />
                 <View style={styles.cardBody}>
                   <View style={styles.cardTop}>
                     <Text style={styles.eventName}>{testName}</Text>
-                    <View style={[styles.pill, { backgroundColor: "#ECF3FF", borderColor: "#C9D9FF" }]}>
-                      <Text style={[styles.pillText, { color: "#3B82F6" }]}>REPORT</Text>
+                    <View style={[styles.pill, { backgroundColor: '#ECF3FF', borderColor: '#C9D9FF' }]}>
+                      <Text style={[styles.pillText, { color: '#3B82F6' }]}>REPORT</Text>
                     </View>
                   </View>
-                  {!!uploadedAt && (
-                    <Text style={styles.meta}>Uploaded: {new Date(uploadedAt).toLocaleDateString()}</Text>
-                  )}
+                  {!!uploadedAt && <Text style={styles.meta}>Uploaded: {new Date(uploadedAt).toLocaleDateString()}</Text>}
                   <View style={styles.actionsRow}>
                     <TouchableOpacity style={styles.softBtn} onPress={() => viewReport(rawFileUrl, item._id)}>
                       <Ionicons name="open-outline" size={16} color={C.success} style={{ marginRight: 6 }} />
                       <Text style={[styles.softBtnText, { color: C.success }]}>View</Text>
                     </TouchableOpacity>
-
                     <TouchableOpacity
                       style={styles.softBtn}
                       onPress={() => downloadReport(rawFileUrl, item._id, testName)}
@@ -619,6 +497,7 @@ function MyLabTestResults() {
     </View>
   );
 }
+
 
 /* ------------------ styles ------------------ */
 function shadow(elev = 4) {
