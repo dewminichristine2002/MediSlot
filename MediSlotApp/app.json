@@ -8,7 +8,6 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "extra": {
-      "GMAPS_API_KEY": "YOUR_REAL_KEY",
       "eas": {
         "projectId": "7fce2c8b-289f-4260-8df6-9bb0fe0e6b1f"
       }
@@ -41,10 +40,10 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-barcode-scanner",
       "expo-web-browser",
       "expo-camera",
-      "expo-font"
+      "expo-font",
+      "expo-build-properties"
     ]
   }
 }
