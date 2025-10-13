@@ -7,11 +7,11 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { fetchCategories } from "../../api/tests";
-
 
 const C = {
   bg: "#F9FAFB",
@@ -27,6 +27,7 @@ const UI = {
     loading: "Loading categories…",
     empty: "No categories found.",
     view: "View tests",
+    search: "Search category...",
   },
   si: {
     titleTop: "පරීක්ෂණ",
@@ -34,6 +35,7 @@ const UI = {
     loading: "වර්ග පූරණය වෙමින්…",
     empty: "වර්ග කිසිවක් නොමැත.",
     view: "පරීක්ෂණ බලන්න",
+    search: "වර්ග සොයන්න...",
   },
 };
 
@@ -48,30 +50,41 @@ const iconFor = (cat) => {
 
 export default function TestCategoriesScreen({ navigation }) {
   const [cats, setCats] = useState([]);
+  const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [lang, setLang] = useState("en"); // "en" | "si"
-  const L = UI[lang];  
+  const [lang, setLang] = useState("en");
+  const [search, setSearch] = useState("");
+  const L = UI[lang];
 
   const load = useCallback(async () => {
     try {
-       const data = await fetchCategories(lang);  
+      const data = await fetchCategories(lang);
       setCats(data);
+      setFiltered(data);
     } catch (e) {
       console.warn(e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
- }, [lang]); 
+  }, [lang]);
 
-useEffect(() => {
-  load();
-}, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-const toggleLang = () => {
-  setLang(prev => (prev === "en" ? "si" : "en"));
-};
+  const toggleLang = () => setLang((prev) => (prev === "en" ? "si" : "en"));
+
+  const handleSearch = (text) => {
+    setSearch(text);
+    if (!text.trim()) {
+      setFiltered(cats);
+    } else {
+      const lower = text.toLowerCase();
+      setFiltered(cats.filter((cat) => cat.toLowerCase().includes(lower)));
+    }
+  };
 
   const Header = () => (
     <LinearGradient
@@ -93,11 +106,7 @@ const toggleLang = () => {
           </Text>
         </View>
 
-        {/* Language toggle only */}
-        <TouchableOpacity
-          onPress={() => setLang((prev) => (prev === "en" ? "si" : "en"))}
-          hitSlop={10}
-        >
+        <TouchableOpacity onPress={toggleLang} hitSlop={10}>
           <Ionicons name="language-outline" size={22} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -119,9 +128,34 @@ const toggleLang = () => {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <Header />
+
+      {/* 🌈 Styled Search Bar */}
+      <LinearGradient
+        colors={["#ffffff", "#f0f9ff"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.searchOuter}
+      >
+        <View style={styles.searchContainer}>
+          <Ionicons name="search-outline" size={20} color="#2563EB" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder={L.search}
+            placeholderTextColor="#9CA3AF"
+            value={search}
+            onChangeText={handleSearch}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => handleSearch("")}>
+              <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </LinearGradient>
+
       <FlatList
         contentContainerStyle={styles.gridWrap}
-        data={cats}
+        data={filtered}
         numColumns={2}
         keyExtractor={(item, idx) => item + idx}
         refreshControl={
@@ -171,6 +205,33 @@ const styles = StyleSheet.create({
   },
   mediSlotTitle: { fontSize: 24, fontWeight: "900", color: "#FFFFFF" },
 
+searchOuter: {
+  marginHorizontal: 16,
+  marginTop: 10, // ⬅️ lifts it slightly below the header curve
+  borderRadius: 16,
+  shadowColor: "#000",
+  shadowOpacity: 0.08,
+  shadowRadius: 5,
+  shadowOffset: { width: 0, height: 3 },
+},
+
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.85)",
+    borderWidth: 1,
+    borderColor: "#E0E7FF",
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 15,
+    color: "#0F172A",
+  },
+
   gridWrap: { padding: 16 },
   center: { flex: 1, alignItems: "center" },
   card: {
@@ -202,5 +263,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   cardHint: { marginTop: 4, fontSize: 12, color: "#6b7280" },
-  muted: { color: "#6b7280", marginTop: 8 },
+  muted: { color: "#6b7280", marginTop: 8, textAlign: "center" },
 });

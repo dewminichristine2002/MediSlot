@@ -113,7 +113,7 @@ app.use((err, _req, res, _next) => {
 
 // Global Error Handler
 app.use((err, req, res, _next) => {
-  console.error("🟥 Global Error:", err);
+  console.error(" Global Error:", err);
   const status = err.statusCode || err.status || 500;
   res.status(status).json({
     message: err.message || "Internal Server Error",

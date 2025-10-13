@@ -93,17 +93,19 @@ export default function TestDetailsScreen({ route, navigation }) {
    const { user } = useAuth();
 
   // Load test
-  useEffect(() => {
-    (async () => {
-      try {
-        setTest(await fetchTestById(id));
-      } catch (e) {
-        console.warn(e);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [id]);
+useEffect(() => {
+  if (!id) return;
+  (async () => {
+    try {
+      const fetched = await fetchTestById(id);
+      setTest(fetched);
+    } catch (e) {
+      console.warn("[Error loading test]", e);
+    } finally {
+      setLoading(false);
+    }
+  })();
+}, [id]);
 
   // Stop TTS when leaving the screen
   useEffect(() => {
@@ -134,7 +136,11 @@ export default function TestDetailsScreen({ route, navigation }) {
       return;
     }
     try {
-      await saveChecklistForTest({ userId: user._id, testId: test.testId });
+     await saveChecklistForTest({
+        userId: user._id,
+        testId: test.testId || test._id, // ✅ fallback to _id if needed
+      });
+
       Alert.alert("✅ Saved!", "Checklist has been added to your profile.");
     } catch (err) {
       console.error(err);
@@ -370,14 +376,29 @@ export default function TestDetailsScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-    saveBtn: {
-    backgroundColor: "#22C55E",
-    padding: 14,
-    borderRadius: 12,
+  saveBtn: {
+    flexDirection: "row",
     alignItems: "center",
-    marginVertical: 12,
+    justifyContent: "center",
+    backgroundColor: "#22C55E",
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    alignSelf: "center",
+    marginVertical: 16,
+    shadowColor: "#22C55E",
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3, // for Android shadow
   },
-  saveTxt: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  saveTxt: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+
   header: {
     width: "100%", alignSelf: "stretch",
     paddingHorizontal: 16, paddingTop: 16, paddingBottom: 22,

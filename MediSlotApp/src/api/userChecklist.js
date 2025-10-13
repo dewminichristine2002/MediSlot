@@ -2,7 +2,7 @@ import { getApiBaseUrl } from "./config";
 const BASE = `${getApiBaseUrl()}/api/user-checklist`;
 
 export async function saveChecklistForTest({ userId, testId }) {
-  const res = await fetch(`${BASE}`, {
+const res = await fetch(`${BASE}/create`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId, testId }),

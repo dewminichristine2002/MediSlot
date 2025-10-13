@@ -172,7 +172,8 @@ export default function ProfileScreen({ route }) {
               <SegmentButton
                 icon="checkmark-done-outline"
                 label="My Check List"
-                onPress={() => navigation.navigate('UserChecklist')}
+               onPress={() => navigation.navigate('MyChecklist')}
+
               />
             </View>
           </View>

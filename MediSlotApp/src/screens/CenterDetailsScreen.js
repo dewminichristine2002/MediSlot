@@ -18,10 +18,6 @@ import * as Location from "expo-location";
 import Constants from "expo-constants";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
-import * as Location from "expo-location";
-import axios from "axios";
-import Constants from "expo-constants";
-
 import { useAuth } from "../context/AuthContext";
 import { fetchCenterTests } from "../api/centers";
 import { formatAddress } from "../utils/format";
@@ -333,15 +329,24 @@ export default function CenterDetailsScreen({ route, navigation }) {
           >
             Book Now
           </SoftButton>
+<SoftButton
+  style={{ flex: 1 }}
+  onPress={() =>
+    navigation.navigate("GuidelinesTab", {
+      screen: "TestDetails",
+      params: {
+        id: item._id || item.test_id || item.testId, // ✅ send correct id
+        test: item,
+        center,
+        name: item.name,
+      },
+    })
+  }
+>
+  More Details
+</SoftButton>
 
-          <SoftButton
-            style={{ flex: 1 }}
-            onPress={() =>
-              navigation.navigate("TestDetails", { test: item, center })
-            }
-          >
-            More Details
-          </SoftButton>
+
         </View>
       </View>
 
