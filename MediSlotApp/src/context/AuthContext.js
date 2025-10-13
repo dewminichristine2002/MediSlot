@@ -15,16 +15,27 @@ export default function AuthProvider({ children }) {
         const token = await AsyncStorage.getItem('token');
         if (token) {
           const { data } = await meApi();
-          setUser(data);
+
+          // 🧩 Normalize: ensure _id is always present
+          const normalizedUser = data
+            ? { ...data, _id: data._id || data.id }
+            : null;
+
+          setUser(normalizedUser);
         }
-      } catch {}
-      setLoading(false);
+      } catch (err) {
+        console.error('❌ Failed to load user from /me:', err);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
   const signIn = async ({ token, user }) => {
     await AsyncStorage.setItem('token', token);
-    setUser(user);
+    // ensure _id exists here too
+    const normalizedUser = user ? { ...user, _id: user._id || user.id } : null;
+    setUser(normalizedUser);
   };
 
   const signOut = async () => {
