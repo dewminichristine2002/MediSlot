@@ -1,2 +1,2 @@
-export const getApiBaseUrl = () => 'http://192.168.1.250:5000'; // your laptop's LAN IP
+export const getApiBaseUrl = () => 'https://medislot-backend-production.up.railway.app';
 //'http://192.168.1.250:5000'; 
