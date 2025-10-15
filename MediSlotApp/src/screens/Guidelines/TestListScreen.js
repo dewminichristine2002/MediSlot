@@ -99,24 +99,25 @@ useEffect(() => {
       </View>
 
       {/* Search under header */}
-      <View style={styles.searchRow}>
-        <Ionicons name="search-outline" size={18} color="#64748b" />
-        <TextInput
-          style={styles.input}
-          placeholder={L.searchPh}
-          value={q}
-          onChangeText={setQ}
-          returnKeyType="search"
-          onSubmitEditing={load}
-        />
-        <TouchableOpacity onPress={load}>
-          <Ionicons
-            name="arrow-forward-circle-outline"
-            size={22}
-            color="#fff"
-          />
-        </TouchableOpacity>
-      </View>
+{/* 🔍 Styled Search Bar */}
+<View style={styles.searchContainer}>
+  <Ionicons name="search-outline" size={20} color="#fff" />
+  <TextInput
+    style={styles.searchInput}
+    placeholder={L.searchPh}
+    placeholderTextColor="#E0E7FF"
+    value={q}
+    onChangeText={setQ}
+    returnKeyType="search"
+    onSubmitEditing={load}
+  />
+  {q.length > 0 && (
+    <TouchableOpacity onPress={() => setQ("")}>
+      <Ionicons name="close-circle" size={20} color="#fff" />
+    </TouchableOpacity>
+  )}
+</View>
+
     </LinearGradient>
   );
 
@@ -195,19 +196,25 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   mediSlotTitle: { fontSize: 24, fontWeight: "900", color: "#FFFFFF" },
-
-  searchRow: {
+  // 🌈 Styled search bar
+  searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    backgroundColor: "#ffffff",
-    marginTop: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: "rgba(255,255,255,0.15)",
     borderRadius: 12,
-    elevation: 1,
+    paddingHorizontal: 10,
+    marginTop: 12,
+    gap: 6,
+    width: "85%",          // 👈 adjust width (80–90% looks best)
+    alignSelf: "center",
   },
-  input: { flex: 1, paddingVertical: 6 },
+  searchInput: {
+    flex: 1,
+    color: "#fff",
+    fontSize: 14,
+    paddingVertical: 6,
+  },
+
 
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   muted: { color: "#6b7280" },

@@ -19,9 +19,12 @@ const CARD_W = Math.min(width, 380);
 // ✅ Fixed: absolute URL builder (no spaces, no duplicate slashes)
 const toAbsolute = (u) => {
   if (!u) return null;
-  const base = getApiBaseUrl().trim().replace(/\/$/, "");
-  return u.startsWith("/") ? `${base}${u}` : u;
+  const url = String(u).trim();
+  if (/^https?:\/\//i.test(url)) return url; // already absolute
+  const base = getApiBaseUrl()?.trim().replace(/\/$/, "");
+  return `${base}${url.startsWith("/") ? url : `/${url}`}`;
 };
+
 
 // ✅ Pick image from available shapes
 const pickImg = (item) => {

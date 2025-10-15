@@ -23,6 +23,16 @@ import { listHealthAwareness } from "../api/healthAwareness";
 import { useAuth } from "../context/AuthContext";
 import { getApiBaseUrl } from "../api/config";
 
+
+// ✅ FIX: build correct image URL
+const makeAbsolute = (url) => {
+  if (!url) return null;
+  const u = String(url).trim();
+  if (/^https?:\/\//i.test(u)) return u; // already absolute (e.g., Cloudinary)
+  const base = getApiBaseUrl()?.trim().replace(/\/$/, "");
+  return `${base}${u.startsWith("/") ? u : `/${u}`}`;
+};
+
 const { width } = Dimensions.get("window");
 const CARD_W = Math.min(width * 0.9, 380);
 const CARD_H = 270;
@@ -171,13 +181,15 @@ export default function HomeScreen({ navigation }) {
   }, [items.length]);
 
 const renderItem = ({ item }) => {
-  const base = getApiBaseUrl().trim().replace(/\/$/, "");
-  const thumb =
-    item?.imageUrl
-      ? `${base}${item.imageUrl}`
-      : Array.isArray(item.photos) && item.photos[0]
-      ? `${base}${item.photos[0]}`
-      : null;
+
+
+const thumb =
+  item?.imageUrl
+    ? makeAbsolute(item.imageUrl)
+    : Array.isArray(item.photos) && item.photos[0]
+    ? makeAbsolute(item.photos[0])
+    : null;
+
 
   return (
     <Pressable
@@ -495,139 +507,184 @@ const renderItem = ({ item }) => {
 
 /* ----------------- Vitals Banner (white card, gradients) ----------------- */
 function VitalsBanner() {
-  // heart pulse (pink)
   const heartScale = useRef(new Animated.Value(1)).current;
+  const fill = useRef(new Animated.Value(0)).current;
+  const [heartOk, setHeartOk] = useState(true);
+
+  // beat + tube fill sync
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(heartScale, {
-          toValue: 1.18,
-          duration: 480,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(heartScale, {
-          toValue: 1.0,
-          duration: 520,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
+        Animated.parallel([
+          Animated.timing(heartScale, { toValue: 1.18, duration: 420, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(fill,       { toValue: 1,    duration: 420, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        ]),
+        Animated.parallel([
+          Animated.timing(heartScale, { toValue: 1.0,  duration: 520, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(fill,       { toValue: 0,    duration: 520, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        ]),
       ])
     ).start();
   }, []);
 
-  // moving ECG bars (each bar with blue→green gradient)
-  const BAR_COUNT = 28,
-    BAR_MIN = 6,
-    BAR_MAX = 30;
-  const pattern = [0.2, 0.25, 0.3, 0.35, 0.45, 1.0, 0.45, 0.3, 0.22, 0.18];
-  const bars = useRef(
-    [...Array(BAR_COUNT)].map(() => new Animated.Value(BAR_MIN))
-  ).current;
-  const offsetRef = useRef(0);
+  // ECG (non-overflowing)
+  const BAR_COUNT = 26, BAR_MIN = 5, BAR_MAX = 24;
+  const bars = useRef([...Array(BAR_COUNT)].map(() => new Animated.Value(BAR_MIN))).current;
   useEffect(() => {
     const id = setInterval(() => {
-      offsetRef.current = (offsetRef.current + 1) % 10000;
-      for (let i = 0; i < BAR_COUNT; i++) {
-        const idx =
-          (((i - offsetRef.current) % pattern.length) + pattern.length) %
-          pattern.length;
-        const factor = pattern[idx];
-        const target = BAR_MIN + factor * (BAR_MAX - BAR_MIN);
-        Animated.timing(bars[i], {
-          toValue: target,
-          duration: 110,
-          useNativeDriver: false,
-        }).start();
-      }
-    }, 110);
+      bars.forEach((b, i) => {
+        const h = BAR_MIN + (Math.sin(Date.now() / 140 + i * 0.35) * 0.5 + 0.5) * (BAR_MAX - BAR_MIN);
+        Animated.timing(b, { toValue: h, duration: 100, useNativeDriver: false }).start();
+      });
+    }, 100);
     return () => clearInterval(id);
   }, [bars]);
 
-  // test-tube fill (blue→green vertical gradient)
-  const fill = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(fill, {
-          toValue: 1,
-          duration: 1800,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: false,
-        }),
-        Animated.timing(fill, {
-          toValue: 0,
-          duration: 1200,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: false,
-        }),
-      ])
-    ).start();
-  }, []);
-  const tubeFillH = fill.interpolate({
-    inputRange: [0, 1],
-    outputRange: [4, 42],
-  });
+  const tubeFillH = fill.interpolate({ inputRange: [0, 1], outputRange: [10, 64] });
 
- return (
-  <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
-    <View style={s.banner}>
-      {/* row with heart / bars / tube */}
-      <View style={s.bannerRow}>
-        {/* Left: pulsing heart */}
-        <View style={s.bannerLeft}>
+  return (
+    <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
+      <View
+        style={{
+          backgroundColor: "#fff",
+          borderRadius: 18,
+          paddingVertical: 14,
+          paddingHorizontal: 12,
+          shadowColor: "#000",
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 3 },
+          elevation: 3,
+          // keep everything neatly inside
+          overflow: "hidden",
+        }}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          {/* 🫀 heart (with smaller, softer halo + fallback) */}
           <Animated.View
-            style={[
-              s.heartGlow,
-              { backgroundColor: "rgba(236,72,153,0.22)", transform: [{ scale: heartScale }] },
-            ]}
-          />
-          <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-            <Ionicons name="heart" size={26} color="#EC4899" />
-          </Animated.View>
-          <Text style={[s.bannerLabel, { color: "#EC4899" }]}>Vitals</Text>
-        </View>
+            style={{
+              transform: [{ scale: heartScale }],
+              alignItems: "left",
+              justifyContent: "center",
+              width: 65,
+                marginRight: -4, 
+            }}
+          >
+  
+            {heartOk ? (
+ <Image
+  source={{
+    uri: "https://em-content.zobj.net/source/apple/354/anatomical-heart_1fac0.png", // transparent heart emoji image
+  }}
+  style={{ width: 68, height: 68, resizeMode: "contain" }}
+/>
 
-        {/* Middle: ECG bars */}
-        <View style={s.barsRow}>
-          {bars.map((h, i) => (
-            <View key={i} style={s.barWrap}>
-              <Animated.View style={[s.bar, { height: h }]}>
+            ) : (
+              <Text style={{ fontSize: 56 }}>🫀</Text> // fallback if gif fails
+            )}
+          </Animated.View>
+
+          {/* 📊 ECG (fixed width so it never spills) */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "flex-end",
+              justifyContent: "center",
+              width: 180, // fixed width = no overflow
+            }}
+          >
+            {bars.map((h, i) => (
+              <Animated.View
+                key={i}
+                style={{
+                  height: h,
+                  width: 4,
+                  marginHorizontal: 2,
+                  borderRadius: 2,
+                  overflow: "hidden",
+                }}
+              >
                 <LinearGradient
-                  colors={["#06B6D4", "#10B981"]}
+                  colors={["#0ea5e9", "#10b981"]}
                   start={{ x: 0, y: 1 }}
                   end={{ x: 0, y: 0 }}
                   style={{ flex: 1, borderRadius: 2 }}
                 />
               </Animated.View>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
 
-        {/* Right: lab tube */}
-        <View style={s.bannerRight}>
-          <MaterialCommunityIcons name="test-tube" size={20} color="#0891B2" style={{ marginBottom: 4 }} />
-          <View style={s.tube}>
+          {/* 🧪 tube (bulb only, NO lid/neck) */}
+          <View
+            style={{
+              width: 35,
+              height: 86,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: "rgba(170,210,255,0.7)",
+              backgroundColor: "rgba(225,240,255,0.16)",
+              overflow: "hidden",
+              justifyContent: "flex-end",
+            }}
+          >
+            {/* liquid + curved meniscus */}
             <Animated.View style={{ height: tubeFillH, width: "100%" }}>
               <LinearGradient
-                colors={["#06B6D4", "#10B981"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={{ flex: 1, borderBottomLeftRadius: 5, borderBottomRightRadius: 5 }}
+                colors={["#0ea5e9", "#10b981"]}
+                start={{ x: 0, y: 1 }}
+                end={{ x: 0, y: 0 }}
+                style={{ flex: 1 }}
+              />
+              <View
+                style={{
+                  position: "absolute",
+                  top: -10,
+                  left: -4,
+                  right: -4,
+                  height: 20,
+                  borderRadius: 12,
+                  backgroundColor: "rgba(16,185,129,0.35)",
+                  borderWidth: 0.5,
+                  borderColor: "rgba(16,185,129,0.25)",
+                }}
               />
             </Animated.View>
+
+            {/* inner glass reflections + bubbles */}
+            <LinearGradient
+              colors={["rgba(255,255,255,0.55)", "transparent"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "28%" }}
+            />
+            <LinearGradient
+              colors={["transparent", "rgba(255,255,255,0.18)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={{ position: "absolute", top: 0, width: "100%", height: 14 }}
+            />
+            <View style={{ position: "absolute", bottom: 10, left: 8, width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.7)" }} />
+            <View style={{ position: "absolute", bottom: 22, right: 10, width: 4, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.6)" }} />
+            <View style={{ position: "absolute", bottom: 36, left: 14, width: 3, height: 3, borderRadius: 1.5, backgroundColor: "rgba(255,255,255,0.55)" }} />
           </View>
-          <Text style={[s.bannerLabel, { color: "#0891B2" }]}>Lab</Text>
         </View>
+
+        <Text style={{ fontSize: 18, fontWeight: "800", textAlign: "center", color: "#2563EB", marginTop: 10 }}>
+          Your Health is Our Priority
+        </Text>
       </View>
-
-      {/* 👇 Your slogan inside the same card */}
-      <Text style={s.sloganInside}>Your Health is Our Priority</Text>
     </View>
-  </View>
-);
-
+  );
 }
+
+
+
 
 /* ----------------- Helpers ----------------- */
 

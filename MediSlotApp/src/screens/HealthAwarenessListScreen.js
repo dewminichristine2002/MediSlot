@@ -7,6 +7,7 @@ import {
   Pressable,
   ActivityIndicator,
   StyleSheet,
+  TextInput,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,13 +25,16 @@ const C = {
 
 export default function HealthAwarenessListScreen({ navigation }) {
   const [items, setItems] = useState([]);
+  const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     (async () => {
       try {
         const data = await listHealthAwareness();
         setItems(data || []);
+        setFiltered(data || []);
       } catch (e) {
         console.warn("List load error:", e?.message);
       } finally {
@@ -39,17 +43,46 @@ export default function HealthAwarenessListScreen({ navigation }) {
     })();
   }, []);
 
+  // 🔍 Search filter (by title, category, region)
+  const handleSearch = (text) => {
+    setSearch(text);
+    if (!text.trim()) {
+      setFiltered(items);
+    } else {
+      const lower = text.toLowerCase();
+      const filteredList = items.filter(
+        (item) =>
+          item.title?.toLowerCase().includes(lower) ||
+          item.category?.toLowerCase().includes(lower) ||
+          item.region?.toLowerCase().includes(lower)
+      );
+      setFiltered(filteredList);
+    }
+  };
+
   const renderItem = ({ item }) => {
     const thumb = item.imageUrl ? toAbsolute(item.imageUrl) : null;
     return (
       <Pressable
-        onPress={() => navigation.navigate("HealthAwarenessDetail", { id: item._id })}
+        onPress={() =>
+          navigation.navigate("HealthAwarenessDetail", { id: item._id })
+        }
         style={s.card}
       >
-        {thumb ? <Image source={{ uri: thumb }} style={s.thumb} /> : <View style={[s.thumb, s.thumbPh]} />}
+        {thumb ? (
+          <Image source={{ uri: thumb }} style={s.thumb} />
+        ) : (
+          <View style={[s.thumb, s.thumbPh]} />
+        )}
         <View style={{ flex: 1 }}>
-          <Text numberOfLines={1} style={s.title}>{item.title}</Text>
-          {!!item.summary && <Text numberOfLines={2} style={s.summary}>{item.summary}</Text>}
+          <Text numberOfLines={1} style={s.title}>
+            {item.title}
+          </Text>
+          {!!item.summary && (
+            <Text numberOfLines={2} style={s.summary}>
+              {item.summary}
+            </Text>
+          )}
           <View style={s.metaRow}>
             {!!item.category && <Pill label={item.category} />}
             {!!item.region && <Pill label={item.region} />}
@@ -69,12 +102,21 @@ export default function HealthAwarenessListScreen({ navigation }) {
 
   return (
     <View style={s.screen}>
-      {/* FULL-WIDTH ROUNDED HEADER */}
-      <LinearGradient colors={[C.g1, C.g2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.header}>
+      {/* 🌈 Gradient Header */}
+      <LinearGradient
+        colors={[C.g1, C.g2]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={s.header}
+      >
         <View style={s.headerRow}>
           <Pressable
             onPress={() => navigation.goBack()}
-            android_ripple={{ color: "rgba(255,255,255,0.25)", radius: 22, borderless: true }}
+            android_ripple={{
+              color: "rgba(255,255,255,0.25)",
+              radius: 22,
+              borderless: true,
+            }}
             style={({ pressed }) => [s.backCircle, pressed && { opacity: 0.9 }]}
           >
             <Ionicons name="chevron-back" size={24} color="#fff" />
@@ -85,13 +127,34 @@ export default function HealthAwarenessListScreen({ navigation }) {
           {/* spacer to keep title centered */}
           <View style={{ width: 44, height: 44 }} />
         </View>
+
+        {/* 🔍 Search bar inside header */}
+        <View style={s.searchContainer}>
+          <Ionicons name="search-outline" size={20} color="#fff" />
+          <TextInput
+            style={s.searchInput}
+            placeholder="Search by title, category, or region..."
+            placeholderTextColor="#E0E7FF"
+            value={search}
+            onChangeText={handleSearch}
+          />
+          {search.length > 0 && (
+            <Pressable onPress={() => handleSearch("")}>
+              <Ionicons name="close-circle" size={20} color="#fff" />
+            </Pressable>
+          )}
+        </View>
       </LinearGradient>
 
+      {/* List */}
       <FlatList
-        data={items}
+        data={filtered}
         keyExtractor={(i) => i._id}
         renderItem={renderItem}
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 24 }}
+        ListEmptyComponent={
+          <Text style={s.emptyTxt}>No matching results found.</Text>
+        }
       />
     </View>
   );
@@ -136,6 +199,25 @@ const s = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.35)",
   },
 
+  // 🔍 Search bar
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    marginTop: 12,
+    gap: 6,
+   alignSelf: "center",
+  width: "85%", // you can use 80%, 70%, or exact like 300
+  },
+  searchInput: {
+    flex: 1,
+    color: "#fff",
+    fontSize: 14,
+    paddingVertical: 6,
+  },
+
   card: {
     flexDirection: "row",
     backgroundColor: "#fff",
@@ -145,14 +227,19 @@ const s = StyleSheet.create({
     borderColor: C.border,
     elevation: 1,
   },
-  thumb: { width: 72, height: 72, borderRadius: 10, backgroundColor: "#EEF2FF", marginRight: 12 },
+  thumb: {
+    width: 72,
+    height: 72,
+    borderRadius: 10,
+    backgroundColor: "#EEF2FF",
+    marginRight: 12,
+  },
   thumbPh: { opacity: 0.7 },
 
   title: { color: C.text, fontWeight: "900", fontSize: 16 },
   summary: { color: "#334155", marginTop: 4 },
-
-  // wrap chips to next line (no overflow)
   metaRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 10 },
+
   pill: {
     backgroundColor: "#EEF2FF",
     paddingHorizontal: 10,
@@ -162,4 +249,11 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   pillTxt: { color: "#1E3A8A" },
+
+  emptyTxt: {
+    textAlign: "center",
+    color: "#6B7280",
+    marginTop: 40,
+    fontSize: 15,
+  },
 });

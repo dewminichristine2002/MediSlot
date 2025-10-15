@@ -11,6 +11,10 @@ import HomePage from "./pages/HomePage";
 import FreeEventsPage from "./pages/FreeEventsPage";
 import GuidelinesPage from "./pages/GuidelinesPage";
 import CentersPage from "./pages/CentersPage";
+import GuidelineForm from "./pages/GuidelineForm";
+import GuidelineDetails from "./pages/GuidelineDetails";
+import HealthAwarenessAdmin from "./pages/HealthAwarenessAdmin";
+
 
 // Health center (use nested routes)
 import HCMeRouter from "./pages/HCMeRouter";
@@ -57,6 +61,34 @@ export default function App() {
             }
           />
           <Route
+            path="/guidelines/:id"
+            element={
+              <ProtectedRoute>
+                <GuidelineDetails />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/guideline-form"
+            element={
+              <ProtectedRoute>
+                <GuidelineForm />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/guideline-form/:id"
+            element={
+              <ProtectedRoute>
+                <GuidelineForm />
+              </ProtectedRoute>
+            }
+          />
+           <Route path="/admin/health-awareness" element={ <ProtectedRoute><HealthAwarenessAdmin /></ProtectedRoute>} />
+
+
+          <Route
             path="/centers"
             element={
               <ProtectedRoute>
@@ -97,6 +129,8 @@ export default function App() {
             <Route path="bookings" element={<HealthCenterBookings />} />
             <Route path="tests" element={<TestsList />} />
             <Route path="details" element={<HealthCenterDetails />} />
+
+            
           </Route>
 
           {/* Default fallback */}

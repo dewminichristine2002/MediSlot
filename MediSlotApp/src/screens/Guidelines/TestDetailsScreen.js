@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator, Linking,
-  TouchableOpacity
+  TouchableOpacity,Image
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,6 +10,8 @@ import { fetchTestById } from "../../api/tests";
 import { useAuth } from "../../context/AuthContext";
 import { saveChecklistForTest } from "../../api/userChecklist";
 import { Alert } from "react-native";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 
 
 const C = {
@@ -243,6 +245,53 @@ useEffect(() => {
     );
   }
 
+  // 👇 ADD THIS HERE (before return)
+const handleDownloadAndShare = async () => {
+  if (!test) return;
+
+  try {
+    const html = `
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #2563EB; }
+            h2 { color: #115e59; }
+            ul { margin-left: 16px; }
+            li { margin-bottom: 6px; }
+            img { width: 100%; max-width: 500px; border-radius: 8px; margin-top: 10px; }
+          </style>
+        </head>
+        <body>
+          <h1>${name}</h1>
+          <p><strong>Category:</strong> ${category || "N/A"}</p>
+          ${mediaUrl ? `<img src="${mediaUrl}" />` : ""}
+          <h2>${L.what}</h2><p>${what || "N/A"}</p>
+          <h2>${L.why}</h2><p>${why || "N/A"}</p>
+          <h2>${L.prep}</h2>
+          <ul>${preparation.map(p => `<li>${p}</li>`).join("")}</ul>
+          <h2>${L.during}</h2>
+          <ul>${during.map(p => `<li>${p}</li>`).join("")}</ul>
+          <h2>${L.after}</h2>
+          <ul>${after.map(p => `<li>${p}</li>`).join("")}</ul>
+          <h2>${L.checklist}</h2>
+          <ul>${checklist.map(c => `<li>${c.label || c.key}</li>`).join("")}</ul>
+        </body>
+      </html>
+    `;
+
+    // ✅ Create PDF
+    const { uri } = await Print.printToFileAsync({ html });
+
+    // ✅ Open share sheet
+    await Sharing.shareAsync(uri);
+  } catch (error) {
+    Alert.alert("Error", "Something went wrong while downloading or sharing.");
+    console.error(error);
+  }
+};
+
+
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       {/* Header */}
@@ -305,6 +354,23 @@ useEffect(() => {
           </View>
         </View>
 
+        
+{mediaUrl && mediaUrl.match(/\.(jpg|jpeg|png|gif)$/i) && (
+  <Image
+    source={{ uri: mediaUrl }}
+    style={{
+      width: "100%",
+      height: 220,
+      borderRadius: 12,
+      resizeMode: "contain",
+      backgroundColor: "#f1f5f9",
+      marginBottom : 8,
+    }}
+  />
+)}
+
+
+
         {!!what && (
           <Section title={L.what} onRead={() => speakText(`${L.what}: ${what}`)}>
             <Text style={styles.body}>{what}</Text>
@@ -364,18 +430,46 @@ useEffect(() => {
             <Text style={styles.linkText}>{L.moreInfo}</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity
-  style={styles.saveBtn}
-  onPress={handleSaveChecklist}
->
-  <Text style={styles.saveTxt}>💾 Save Checklist</Text>
-</TouchableOpacity>
+
+
+<View style={styles.buttonRow}>
+  <TouchableOpacity
+    style={[styles.saveBtn, styles.halfBtn, { backgroundColor: "#22C55E" }]}
+    onPress={handleSaveChecklist}
+  >
+    <Text style={styles.saveTxt}>💾 Save Checklist</Text>
+  </TouchableOpacity>
+
+  <TouchableOpacity
+    style={[styles.saveBtn, styles.halfBtn, { backgroundColor: "#0EA5E9" }]}
+    onPress={handleDownloadAndShare}
+  >
+    <Ionicons name="download-outline" size={20} color="#fff" style={{ marginRight: 6 }} />
+    <Text style={styles.saveTxt}>Download & Share</Text>
+  </TouchableOpacity>
+</View>
+
+
+
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  buttonRow: {
+  flexDirection: "row",
+  gap: 12,
+  marginTop: 8,
+  marginBottom: 16,
+},
+
+halfBtn: {
+  flex: 1,
+  alignSelf: "auto",   // override the center alignment from saveBtn
+  marginVertical: 0,   // remove extra vertical margin
+},
+
   saveBtn: {
     flexDirection: "row",
     alignItems: "center",

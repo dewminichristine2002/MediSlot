@@ -70,9 +70,11 @@ exports.getOne = async (req, res) => {
 
 // POST /api/tests
 exports.create = async (req, res) => {
+  if (!req.body.testId) req.body.testId = "T" + Date.now();
   const doc = await Test.create(req.body);
   res.status(201).json(doc);
 };
+
 
 // PUT /api/tests/:id
 exports.update = async (req, res) => {

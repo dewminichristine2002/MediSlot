@@ -11,8 +11,13 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { fetchCategories } from "../../api/tests";
+import { useFocusEffect } from "@react-navigation/native";
 
+/* ---------------------------------------------------------------------- */
+/*  COLORS & LANGUAGE TEXTS                                               */
+/* ---------------------------------------------------------------------- */
 const C = {
   bg: "#F9FAFB",
   text: "#0F172A",
@@ -39,15 +44,80 @@ const UI = {
   },
 };
 
+/* ---------------------------------------------------------------------- */
+/*  ICON HANDLER (ENGLISH + SINHALA AWARE)                                */
+/* ---------------------------------------------------------------------- */
 const iconFor = (cat) => {
-  const k = (cat || "").toLowerCase();
-  if (k.includes("blood")) return "water-outline";
-  if (k.includes("urine")) return "beaker-outline";
-  if (k.includes("x-ray") || k.includes("image")) return "images-outline";
-  if (k.includes("cardio")) return "heart-outline";
-  return "medkit-outline";
+  const k = (cat || "").toLowerCase().trim();
+
+  // 🌬️ Respiratory / Lungs
+  if (
+    k.includes("respiratory") ||
+    k.includes("lung") ||
+    k.includes("lungs") ||
+    k.includes("ආශ්වාස") || // Sinhala respiratory
+    k.includes("ශ্বাস") ||
+    k.includes("පැහැදිලි කිරීම")
+  ) {
+    return { lib: "mci", name: "lungs" };
+  }
+
+  // 🧠 Neurology / Brain
+  if (
+    k.includes("neurology") ||
+    k.includes("brain") ||
+    k.includes("මොළය") || // Sinhala brain
+    k.includes("නරඹු") ||
+    k.includes("මොළයේ")
+  ) {
+    return { lib: "mci", name: "brain" };
+  }
+
+  // ❤️ Cardiology
+  if (k.includes("cardio") || k.includes("heart") || k.includes("හෘදය"))
+    return { lib: "ion", name: "heart-outline" };
+
+  // 🩸 Blood
+  if (k.includes("blood") || k.includes("ලේ"))
+    return { lib: "ion", name: "water-outline" };
+
+  // 🧪 Urine
+  if (k.includes("urine") || k.includes("මුත්‍රා"))
+    return { lib: "ion", name: "beaker-outline" };
+
+  // 🩻 Imaging / X-ray
+  if (
+    k.includes("x-ray") ||
+    k.includes("image") ||
+    k.includes("imaging") ||
+    k.includes("රූප") ||
+    k.includes("අරුණු")
+  )
+    return { lib: "ion", name: "images-outline" };
+
+  // 🧫 Hormonal / Endocrine
+  if (k.includes("hormonal") || k.includes("endocrine") || k.includes("හෝර්මෝන්"))
+    return { lib: "ion", name: "flask-outline" };
+
+  // 🧬 Pathology / Biochem
+  if (k.includes("pathology") || k.includes("biochem") || k.includes("පැතොලොජි"))
+    return { lib: "ion", name: "eyedrop-outline" };
+
+  // 🧍‍♀️ Pregnancy / Female
+  if (k.includes("pregnancy") || k.includes("ගර්භණී"))
+    return { lib: "ion", name: "female-outline" };
+
+  // 🧩 Pediatrics / Children
+  if (k.includes("pediatric") || k.includes("ළමයි") || k.includes("දරුවන්"))
+    return { lib: "ion", name: "happy-outline" };
+
+  // Default
+  return { lib: "ion", name: "medkit-outline" };
 };
 
+/* ---------------------------------------------------------------------- */
+/*  MAIN COMPONENT                                                        */
+/* ---------------------------------------------------------------------- */
 export default function TestCategoriesScreen({ navigation }) {
   const [cats, setCats] = useState([]);
   const [filtered, setFiltered] = useState([]);
@@ -74,6 +144,27 @@ export default function TestCategoriesScreen({ navigation }) {
     load();
   }, [load]);
 
+  useFocusEffect(
+    useCallback(() => {
+      const state = navigation.getState();
+      const thisRoute = state.routes.find((r) => r.name === "GuidelinesTab");
+      const params = thisRoute?.state?.routes?.find(
+        (r) => r.name === "TestCategories"
+      )?.params;
+
+      if (params?.openTestId) {
+        setTimeout(() => {
+          navigation.navigate("TestDetails", {
+            id: params.openTestId,
+            test: params.test,
+            center: params.center,
+            name: params.name,
+          });
+        }, 300);
+      }
+    }, [navigation])
+  );
+
   const toggleLang = () => setLang((prev) => (prev === "en" ? "si" : "en"));
 
   const handleSearch = (text) => {
@@ -86,6 +177,9 @@ export default function TestCategoriesScreen({ navigation }) {
     }
   };
 
+  /* ------------------------------------------------------------------ */
+  /*  HEADER SECTION                                                    */
+  /* ------------------------------------------------------------------ */
   const Header = () => (
     <LinearGradient
       colors={[C.g1, C.g2]}
@@ -110,9 +204,29 @@ export default function TestCategoriesScreen({ navigation }) {
           <Ionicons name="language-outline" size={22} color="#fff" />
         </TouchableOpacity>
       </View>
+
+      {/* 🔍 Search bar inside header */}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search-outline" size={20} color="#fff" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder={L.search}
+          placeholderTextColor="#E0E7FF"
+          value={search}
+          onChangeText={handleSearch}
+        />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => handleSearch("")}>
+            <Ionicons name="close-circle" size={20} color="#fff" />
+          </TouchableOpacity>
+        )}
+      </View>
     </LinearGradient>
   );
 
+  /* ------------------------------------------------------------------ */
+  /*  LOADING & CONTENT                                                 */
+  /* ------------------------------------------------------------------ */
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: C.bg }]}>
@@ -128,31 +242,6 @@ export default function TestCategoriesScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <Header />
-
-      {/* 🌈 Styled Search Bar */}
-      <LinearGradient
-        colors={["#ffffff", "#f0f9ff"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.searchOuter}
-      >
-        <View style={styles.searchContainer}>
-          <Ionicons name="search-outline" size={20} color="#2563EB" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={L.search}
-            placeholderTextColor="#9CA3AF"
-            value={search}
-            onChangeText={handleSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => handleSearch("")}>
-              <Ionicons name="close-circle" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </LinearGradient>
-
       <FlatList
         contentContainerStyle={styles.gridWrap}
         data={filtered}
@@ -174,7 +263,18 @@ export default function TestCategoriesScreen({ navigation }) {
             onPress={() => navigation.navigate("TestList", { category: item })}
           >
             <View style={styles.iconWrap}>
-              <Ionicons name={iconFor(item)} size={28} color="#1B9C85" />
+              {(() => {
+                const icon = iconFor(item);
+                return icon.lib === "mci" ? (
+                  <MaterialCommunityIcons
+                    name={icon.name}
+                    size={28}
+                    color="#1B9C85"
+                  />
+                ) : (
+                  <Ionicons name={icon.name} size={28} color="#1B9C85" />
+                );
+              })()}
             </View>
             <Text style={styles.cardTitle}>{item}</Text>
             <Text style={styles.cardHint}>{L.view}</Text>
@@ -186,6 +286,9 @@ export default function TestCategoriesScreen({ navigation }) {
   );
 }
 
+/* ---------------------------------------------------------------------- */
+/*  STYLES                                                               */
+/* ---------------------------------------------------------------------- */
 const styles = StyleSheet.create({
   header: {
     width: "100%",
@@ -205,31 +308,22 @@ const styles = StyleSheet.create({
   },
   mediSlotTitle: { fontSize: 24, fontWeight: "900", color: "#FFFFFF" },
 
-searchOuter: {
-  marginHorizontal: 16,
-  marginTop: 10, // ⬅️ lifts it slightly below the header curve
-  borderRadius: 16,
-  shadowColor: "#000",
-  shadowOpacity: 0.08,
-  shadowRadius: 5,
-  shadowOffset: { width: 0, height: 3 },
-},
-
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.85)",
-    borderWidth: 1,
-    borderColor: "#E0E7FF",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    marginTop: 12,
+    gap: 6,
+    width: "80%",
+    alignSelf: "center",
   },
   searchInput: {
     flex: 1,
-    marginLeft: 8,
-    fontSize: 15,
-    color: "#0F172A",
+    color: "#fff",
+    fontSize: 14,
+    paddingVertical: 6,
   },
 
   gridWrap: { padding: 16 },

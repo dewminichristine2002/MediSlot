@@ -1,4 +1,3 @@
-// src/screens/MyChecklistScreen.js
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -88,34 +87,36 @@ export default function MyChecklistScreen({ navigation }) {
   }, [user]);
 
   // ✅ Toggle (tick / untick)
-  const handleToggle = async (itemId, stepKey, currentValue) => {
-    try {
-      const res = await fetch(`${BASE}/${itemId}/items/${stepKey}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ value: !currentValue }),
-      });
-      if (!res.ok) throw new Error("Failed to toggle");
+const handleToggle = async (itemId, stepKey, currentValue) => {
+  try {
+    const res = await fetch(`${BASE}/${itemId}/items/${stepKey}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: !currentValue }),
+    });
+    if (!res.ok) throw new Error("Failed to toggle");
 
-      setData((prev) =>
-        prev.map((c) =>
-          c._id === itemId
-            ? {
-                ...c,
-                items: c.items.map((it) =>
-                  it.key === stepKey ? { ...it, value: !currentValue } : it
-                ),
-                completedCount: !currentValue
-                  ? c.completedCount + 1
-                  : c.completedCount - 1,
-              }
-            : c
-        )
-      );
-    } catch (err) {
-      console.error("Toggle failed:", err);
-    }
-  };
+    // Update state safely
+    setData((prev) =>
+      prev.map((c) => {
+        if (c._id !== itemId) return c;
+
+        // Toggle the target item
+        const updatedItems = c.items.map((it) =>
+          it.key === stepKey ? { ...it, value: !currentValue } : it
+        );
+
+        // Recalculate completedCount accurately
+        const completedCount = updatedItems.filter((it) => it.value).length;
+
+        return { ...c, items: updatedItems, completedCount };
+      })
+    );
+  } catch (err) {
+    console.error("Toggle failed:", err);
+  }
+};
+
 
   // ✅ Delete checklist (after confirmation)
   const handleDelete = async () => {
@@ -174,9 +175,15 @@ export default function MyChecklistScreen({ navigation }) {
                 <Ionicons name="flask-outline" size={22} color={C.g1} />
                 <View style={{ marginLeft: 8, flex: 1 }}>
                   <Text style={styles.testName}>
-                    {item.test?.name || "Unknown Test"}
+                    {lang === "si"
+                      ? item.test?.translations?.si?.name || item.test?.name
+                      : item.test?.name}
                   </Text>
-                  <Text style={styles.category}>{item.test?.category}</Text>
+                  <Text style={styles.category}>
+                    {lang === "si"
+                      ? item.test?.translations?.si?.category || item.test?.category
+                      : item.test?.category}
+                  </Text>
                 </View>
               </View>
 
@@ -215,36 +222,44 @@ export default function MyChecklistScreen({ navigation }) {
             <View style={styles.progressBox}>
               <Ionicons name="checkbox-outline" size={20} color="#22c55e" />
               <Text style={styles.progress}>
-                {item.completedCount}/{item.totalCount} completed
+                {item.completedCount}/{item.totalCount}{" "}
+                {lang === "si" ? "නිමාවී ඇත" : "completed"}
               </Text>
             </View>
 
             {/* Steps list */}
-            {item.items?.map((step, i) => (
-              <TouchableOpacity
-                key={i}
-                style={styles.itemRow}
-                onPress={() => handleToggle(item._id, step.key, step.value)}
-              >
-                <Ionicons
-                  name={step.value ? "checkmark-circle" : "ellipse-outline"}
-                  size={22}
-                  color={step.value ? "#22c55e" : "#9ca3af"}
-                  style={{ marginRight: 8 }}
-                />
-                <Text
-                  style={[
-                    styles.itemText,
-                    step.value && {
-                      textDecorationLine: "line-through",
-                      color: "#6b7280",
-                    },
-                  ]}
+            {item.items?.map((step, i) => {
+              const siLabel =
+                item.test?.translations?.si?.checklist?.find(
+                  (c) => c.key === step.key
+                )?.label || step.label;
+
+              return (
+                <TouchableOpacity
+                  key={i}
+                  style={styles.itemRow}
+                  onPress={() => handleToggle(item._id, step.key, step.value)}
                 >
-                  {step.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Ionicons
+                    name={step.value ? "checkmark-circle" : "ellipse-outline"}
+                    size={22}
+                    color={step.value ? "#22c55e" : "#9ca3af"}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text
+                    style={[
+                      styles.itemText,
+                      step.value && {
+                        textDecorationLine: "line-through",
+                        color: "#6b7280",
+                      },
+                    ]}
+                  >
+                    {lang === "si" ? siLabel : step.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
 
             {/* View Details */}
             <TouchableOpacity
@@ -260,7 +275,9 @@ export default function MyChecklistScreen({ navigation }) {
                 })
               }
             >
-              <Text style={styles.viewTxt}>View Details</Text>
+              <Text style={styles.viewTxt}>
+                {lang === "si" ? "විස්තර බලන්න" : "View Details"}
+              </Text>
             </TouchableOpacity>
           </View>
         ))}
@@ -281,9 +298,13 @@ export default function MyChecklistScreen({ navigation }) {
               color="#f97316"
               style={{ marginBottom: 10 }}
             />
-            <Text style={styles.modalTitle}>Remove Checklist?</Text>
+            <Text style={styles.modalTitle}>
+              {lang === "si" ? "පරීක්ෂණ ලයිස්තුව ඉවත් කරන්නද?" : "Remove Checklist?"}
+            </Text>
             <Text style={styles.modalMsg}>
-              Are you sure you want to delete this checklist?
+              {lang === "si"
+                ? "මෙම පරීක්ෂණ ලයිස්තුව ඉවත් කිරීමට ඔබට අවශ්‍ය බව විශ්වාසද?"
+                : "Are you sure you want to delete this checklist?"}
             </Text>
 
             <View style={styles.modalActions}>
@@ -291,13 +312,17 @@ export default function MyChecklistScreen({ navigation }) {
                 style={[styles.modalBtn, { backgroundColor: "#e5e7eb" }]}
                 onPress={() => setConfirmVisible(false)}
               >
-                <Text style={{ color: "#374151" }}>Cancel</Text>
+                <Text style={{ color: "#374151" }}>
+                  {lang === "si" ? "අවලංගු කරන්න" : "Cancel"}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalBtn, { backgroundColor: "#ef4444" }]}
                 onPress={handleDelete}
               >
-                <Text style={{ color: "#fff" }}>Remove</Text>
+                <Text style={{ color: "#fff" }}>
+                  {lang === "si" ? "ඉවත් කරන්න" : "Remove"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

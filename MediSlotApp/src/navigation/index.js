@@ -197,6 +197,7 @@ function GuidelinesStack() {
 function MainTabs() {
   return (
     <Tab.Navigator
+    lazy={false} 
       initialRouteName="HomeTab"
       screenOptions={({ route }) => ({
         headerShown: false,
@@ -214,11 +215,21 @@ function MainTabs() {
         tabBarLabelStyle: { fontSize: 11 },
       })}
     >
-      <Tab.Screen
-        name="HomeTab"
-        component={HomeStack}
-        options={{ title: "Home" }}
-      />
+        <Tab.Screen
+          name="HomeTab"
+          component={HomeStack}
+          options={{ title: "Home" }}
+          listeners={({ navigation }) => ({
+            tabPress: (e) => {
+              // 👇 Always navigate to the root 'Home' screen when tab pressed
+              e.preventDefault();
+              navigation.navigate("HomeTab", {
+                screen: "Home",
+              });
+            },
+          })}
+        />
+
       <Tab.Screen
         name="FreeEventsTab"
         component={FreeEventsStack}
@@ -233,7 +244,17 @@ function MainTabs() {
         name="GuidelinesTab"
         component={GuidelinesStack}
         options={{ title: "Guidelines" }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            // Always navigate to the root TestCategories screen
+            e.preventDefault();
+            navigation.navigate("GuidelinesTab", {
+              screen: "TestCategories",
+            });
+          },
+        })}
       />
+
     </Tab.Navigator>
   );
 }

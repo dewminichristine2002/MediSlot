@@ -19,7 +19,9 @@ function collectTestIds(body) {
   if (Array.isArray(body.tests))
     body.tests.forEach((x) => x && set.add(String(x)));
   if (Array.isArray(body.items))
-    body.items.forEach((it) => it?.centerTest && set.add(String(it.centerTest)));
+    body.items.forEach(
+      (it) => it?.centerTest && set.add(String(it.centerTest))
+    );
   if (body.centerTest) set.add(String(body.centerTest));
   if (body.testId) set.add(String(body.testId));
   return [...set];
@@ -126,7 +128,11 @@ exports.createBooking = async (req, res) => {
 
     /* ---------- ✅ Notification block ---------- */
     try {
-      const smsMessage = `✅ Hi ${b.patientName}, your booking #${b.appointment_no} at ${b.healthCenter?.name || "your selected center"} on ${b.scheduledDate} at ${b.scheduledTime} is confirmed.`;
+      const smsMessage = `✅ Hi ${b.patientName}, your booking #${
+        b.appointment_no
+      } at ${b.healthCenter?.name || "your selected center"} on ${
+        b.scheduledDate
+      } at ${b.scheduledTime} is confirmed.`;
 
       if (b?.contactNumber) {
         await sendSMS(b.contactNumber, smsMessage);
@@ -191,3 +197,75 @@ exports.cancelBooking = async (_req, res) =>
   res.status(405).json({ error: "Cancel not enabled" });
 exports.rescheduleBooking = async (_req, res) =>
   res.status(405).json({ error: "Reschedule not enabled" });
+
+//getBookingsForLab
+
+exports.getBookingsForLab = async (req, res) => {
+  try {
+    const labCenterId = req.user.center || req.user.centerId;
+    if (!labCenterId) {
+      return res.status(400).json({ message: "Center ID missing in token" });
+    }
+
+    // 🧩 Just fetch all bookings for this health center
+    const rows = await Booking.find({ healthCenter: labCenterId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // 🧩 Map them for frontend
+    const data = rows.map((b) => {
+      const total =
+        typeof b.price === "number"
+          ? b.price
+          : (b.items || []).reduce((s, it) => s + Number(it?.price || 0), 0);
+
+      // ✅ FIX: detect payment type properly
+      let paymentStatus = "Pay @ Center";
+      if (b.payment?.method === "online") {
+        paymentStatus = "Online";
+      } else if (b.payment?.method === "pay_at_center") {
+        paymentStatus = "Pay @ Center";
+      }
+
+      return {
+        _id: b._id,
+        date: b.date || b.scheduledDate || b.createdAt,
+        patientName: b.patientName || "-",
+        testName:
+          b.testName || (Array.isArray(b.items) && b.items[0]?.name) || "-",
+        price: total,
+        paymentStatus,
+        status: b.status || b.bookingStatus || "Pending",
+        reportUrl: b.reportUrl || null,
+      };
+    });
+
+    res.json(data);
+  } catch (err) {
+    console.error("Error fetching lab bookings:", err);
+    res.status(500).json({ message: "Failed to fetch lab bookings" });
+  }
+};
+
+// controllers/bookingsController.js
+exports.updateBookingStatusForLab = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const result = await Booking.updateOne(
+      { _id: id },
+      { $set: { status, bookingStatus: status } },
+      { strict: false } // <-- allow fields not in schema
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    return res.json({ message: "Booking status updated successfully" });
+  } catch (err) {
+    console.error("Error updating booking status:", err);
+    res.status(500).json({ message: err.message });
+  }
+};

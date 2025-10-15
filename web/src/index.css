@@ -1977,3 +1977,114 @@ main h2 {
     width: 100%;
   }
 }
+/* checklist editor */
+.checklist-editor { display:flex; flex-direction:column; gap:8px; }
+.checklist-row { display:grid; grid-template-columns: 1fr 2fr auto auto; gap:8px; align-items:center; }
+.checklist-row input[type="text"], .checklist-row input:not([type]) { padding:8px 10px; border:1px solid #d1d5db; border-radius:8px; }
+.chk { display:flex; align-items:center; gap:6px; }
+
+/* checklist static */
+.checklist-static { list-style: none; padding-left:0; margin:0; }
+.checklist-static li { margin:6px 0; }
+.checklist-static .key { font-weight:600; }
+.checklist-static .lbl { color:#374151; }
+
+/* small helpers if needed */
+.badge-blue { background:#dbeafe; color:#1d4ed8; padding:4px 10px; border-radius:999px; font-size:12px; }
+.muted { color:#6b7280; }
+
+/* buttons */
+
+.btn-secondary { background:#9ca3af; color:#fff; border:none; padding:8px 12px; border-radius:8px; }
+.btn-secondary:hover { background:#6b7280; }
+.btn-delete.sm { padding:6px 10px; border-radius:6px; }
+
+/* widen the center wrapper a bit */
+.narrow.wide {
+  max-width: 1280px;         /* was ~1100; bump to 1280 */
+  width: 90vw;               /* responsive width */
+  margin: 0 auto 24px auto;
+}
+
+
+/* controls row: search + add button in one line */
+.controls-card { padding: 12px; }
+.controls-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.controls-search {
+  flex: 1 1 420px;         /* grows but won't get too tiny */
+  min-width: 260px;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+.controls-spacer { flex: 1; }   /* pushes Add button to the right */
+.controls-add { white-space: nowrap; }
+
+/* page width & layout */
+.guidelines-wrap {
+  max-width: 1200px;     /* standard app width */
+  width: calc(100vw - 480px); /* responsive cap so it doesn't hug edges */
+  min-width: 920px;      /* prevents awkward squish on mid screens */
+  margin: 0 auto 24px auto;
+}
+
+/* controls row (search + add) */
+.controls-card { padding: 12px; }
+.controls-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.controls-row.sb { justify-content: space-between; }
+.controls-search {
+  flex: 1 1 560px;
+  min-width: 360px;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid #cfd4dc;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.controls-add {
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* table sizing + spacing */
+.guidelines-table thead th {
+  height: 48px;
+  vertical-align: middle;
+}
+.guidelines-row td {
+  height: 72px;          /* consistent row height */
+  vertical-align: middle;
+}
+.name-cell { font-weight: 600; }
+
+/* action buttons: consistent spacing & size */
+.actions-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+.actions-cell .btn-view,
+.actions-cell .btn-edit,
+.actions-cell .btn-delete {
+  min-width: 64px;
+  height: 36px;
+  line-height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  margin-left: 10px;     /* even spacing */
+}
+
+/* keep badges tidy */
+.badge { font-size: 12px; padding: 4px 10px; border-radius: 999px; }

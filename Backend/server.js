@@ -6,6 +6,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const fs = require('fs');
 const path = require('path');
+const mongoose = require("mongoose");
 
 
 
@@ -57,7 +58,10 @@ app.get("/db-health", async (_req, res) => {
 // --- Ensure uploads dir and serve static ---
 const uploadsRoot = path.join(__dirname, 'uploads');
 fs.mkdirSync(uploadsRoot, { recursive: true });
-app.use('/uploads', express.static(uploadsRoot));
+
+// ✅ Serve uploads folder publicly
+app.use("/uploads", express.static(uploadsRoot));
+
 
 // --- Connect DB (non-fatal on dev) ---
 (async () => {
@@ -70,6 +74,9 @@ app.use('/uploads', express.static(uploadsRoot));
 })();
 
 // --- Routes: mount each ONCE ---
+
+app.use("/api/uploads", require("./routes/uploadRoutes"));
+
 app.use("/api/health-awareness", require("./routes/LabTests/healthAwarenessRoutes"));
 app.use("/api/user-checklist", require("./routes/LabTests/userChecklistRoutes"));
 

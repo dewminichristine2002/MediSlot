@@ -335,8 +335,8 @@ export default function CenterDetailsScreen({ route, navigation }) {
     navigation.navigate("GuidelinesTab", {
       screen: "TestDetails",
       params: {
-        id: item._id || item.test_id || item.testId, // ✅ send correct id
-        test: item,
+        id: item.test_id ?? item._id ?? item.testId,  // make sure this matches your DB id
+        test: item,            // send full object as a fallback
         center,
         name: item.name,
       },
@@ -345,6 +345,7 @@ export default function CenterDetailsScreen({ route, navigation }) {
 >
   More Details
 </SoftButton>
+
 
 
         </View>

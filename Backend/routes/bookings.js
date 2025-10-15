@@ -4,13 +4,35 @@ const PDFDocument = require("pdfkit");
 const QRCode = require("qrcode");
 const Booking = require("../models/Booking");
 const HealthCenter = require("../models/HealthCenter");
-const { protect } = require("../middleware/auth");
+const { protect, requireRole } = require("../middleware/auth");
 const ctrl = require("../controllers/bookingsController");
 
 // existing routes
 router.get("/availability", protect, ctrl.getAvailability);
 router.post("/", protect, ctrl.createBooking);
 router.get("/my", protect, ctrl.getMyBookings);
+
+// ✅ NEW: Get all bookings for this health center (lab dashboard)
+router.get(
+  "/lab",
+  protect,
+  requireRole("healthCenterAdmin", "admin", "healthCenter", "centerAdmin", "labAdmin"),
+  ctrl.getBookingsForLab
+);
+
+// ✅ Update booking status (for lab dashboard)
+console.log("🧭 Bookings router loaded successfully");
+
+router.patch(
+  "/lab/:id/status",
+  protect,
+  requireRole("healthCenterAdmin", "admin", "healthCenter", "centerAdmin", "labAdmin"),
+  (req, res, next) => {
+    console.log("🟢 PATCH /lab/:id/status route hit!");
+    next();
+  },
+  ctrl.updateBookingStatusForLab
+);
 
 /* ------------------------------------------------------------------
    🧾  BEAUTIFIED PDF RECEIPT (public)
@@ -85,7 +107,11 @@ router.get("/:id/receipt", async (req, res) => {
     doc.moveDown(1);
 
     // === TEST DETAILS TABLE ===
-    doc.font("Helvetica-Bold").fontSize(13).fillColor("#0ea5e9").text("Test Details");
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(13)
+      .fillColor("#0ea5e9")
+      .text("Test Details");
     doc.moveDown(0.5);
     doc.font("Helvetica-Bold").fontSize(11).fillColor("black");
     doc.text("No.", 45);
@@ -111,10 +137,7 @@ router.get("/:id/receipt", async (req, res) => {
     doc.moveDown(0.5);
 
     // === TOTAL HIGHLIGHT BAR ===
-    doc
-      .roundedRect(350, doc.y, 170, 22, 4)
-      .fill("#0ea5e9")
-      .stroke("#0ea5e9");
+    doc.roundedRect(350, doc.y, 170, 22, 4).fill("#0ea5e9").stroke("#0ea5e9");
     doc
       .fillColor("#fff")
       .font("Helvetica-Bold")
@@ -127,7 +150,11 @@ router.get("/:id/receipt", async (req, res) => {
     const qrImage = await QRCode.toDataURL(qrData);
     const qrBuffer = Buffer.from(qrImage.split(",")[1], "base64");
     doc.image(qrBuffer, 45, doc.y, { width: 70 });
-    doc.font("Helvetica").fontSize(9).fillColor("gray").text("Scan for verification", 45, doc.y + 75);
+    doc
+      .font("Helvetica")
+      .fontSize(9)
+      .fillColor("gray")
+      .text("Scan for verification", 45, doc.y + 75);
     doc.moveDown(5);
 
     // === FOOTER ===
