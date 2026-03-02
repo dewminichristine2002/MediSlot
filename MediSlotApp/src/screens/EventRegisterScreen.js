@@ -315,7 +315,7 @@ export default function EventRegisterScreen() {
           text: "View in Profile",
           onPress: () => {
             reset(defaultValues);
-            navigation.navigate("Profile");
+            navigation.navigate("HomeTab", { screen: "Profile" });
           },
         },
         {

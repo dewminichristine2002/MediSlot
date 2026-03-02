@@ -103,7 +103,7 @@ useEffect(() => {
 <View style={styles.searchContainer}>
   <Ionicons name="search-outline" size={20} color="#fff" />
   <TextInput
-    style={styles.searchInput}
+    style={styles.searchdewInput}
     placeholder={L.searchPh}
     placeholderTextColor="#E0E7FF"
     value={q}
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     width: "85%",          // 👈 adjust width (80–90% looks best)
     alignSelf: "center",
   },
-  searchInput: {
+  searchdewInput: {
     flex: 1,
     color: "#fff",
     fontSize: 14,

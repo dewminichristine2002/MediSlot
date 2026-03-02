@@ -9,23 +9,26 @@
     "newArchEnabled": true,
     "extra": {
       "eas": {
-        "projectId": "7fce2c8b-289f-4260-8df6-9bb0fe0e6b1f"
+        "owner": "dew2_expo",
+        "projectId": "b34a67eb-a1e5-47a8-b380-45bcafec54c2"
       }
     },
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "We use the camera to scan QR codes at check-in."
-      }
+        "NSCameraUsageDescription": "We use the camera to scan QR codes at check-in.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.dewmini.medislot"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,

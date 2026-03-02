@@ -104,7 +104,7 @@ export default function BookingHistoryScreen() {
           renderItem={({ item }) => (
             <View style={styles.card}>
               <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>#{item.appointment_no}</Text>
+                <Text style={styles.cardTitle}>No: {item.appointment_no}</Text>
                 <View
                   style={[
                     styles.badge,

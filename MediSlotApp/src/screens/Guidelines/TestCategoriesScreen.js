@@ -209,7 +209,7 @@ export default function TestCategoriesScreen({ navigation }) {
       <View style={styles.searchContainer}>
         <Ionicons name="search-outline" size={20} color="#fff" />
         <TextInput
-          style={styles.searchInput}
+          style={styles.searchdewInput}
           placeholder={L.search}
           placeholderTextColor="#E0E7FF"
           value={search}
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
     width: "80%",
     alignSelf: "center",
   },
-  searchInput: {
+  searchdewInput: {
     flex: 1,
     color: "#fff",
     fontSize: 14,

@@ -134,7 +134,7 @@ useEffect(() => {
   }, [lang]);
   const handleSaveChecklist = async () => {
     if (!user?._id) {
-      navigation.navigate("Login");
+     navigation.getParent()?.navigate("HomeTab", { screen: "Login" });
       return;
     }
     try {
@@ -143,7 +143,21 @@ useEffect(() => {
         testId: test.testId || test._id, // ✅ fallback to _id if needed
       });
 
-      Alert.alert("✅ Saved!", "Checklist has been added to your profile.");
+Alert.alert(
+  "✅ Saved!",
+  "Checklist has been added to your profile.",
+  [
+    {
+      text: "View Profile",
+      onPress: () => {
+        // Navigate to the Profile screen in HomeTab
+        navigation.getParent()?.navigate("HomeTab", { screen: "Profile" });
+      },
+    },
+    { text: "OK", style: "cancel" },
+  ]
+);
+
     } catch (err) {
       console.error(err);
       Alert.alert("Error", "Could not save checklist.");

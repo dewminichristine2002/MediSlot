@@ -271,7 +271,7 @@ export default function FreeEventsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
+      <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: C.bg }}>
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={C.primary} />
           <Text style={styles.loadingText}>Loading events…</Text>
@@ -282,7 +282,7 @@ export default function FreeEventsScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: C.bg }}>
       {/* header */}
       <LinearGradient colors={[C.g1, C.g2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
         <Text style={styles.headerTitle}>Free Diagnostic Camps</Text>
@@ -343,10 +343,13 @@ export default function FreeEventsScreen() {
             keyExtractor={(item) => item._id}
             renderItem={renderItem}
             contentContainerStyle={styles.listContent}
+              contentInset={{ bottom: 0 }}
+                scrollIndicatorInsets={{ bottom: 0 }}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[C.primary]} />
             }
           />
+          
         )}
       </View>
     </SafeAreaView>

@@ -5,7 +5,7 @@ import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
 
 export default function HealthAwarenessAdmin() {
-  const API_URL = "http://localhost:5000/api/health-awareness";
+  const API_URL = "https://medislot-backend-production.up.railway.app/api/health-awareness";
 
   const [list, setList] = useState([]);
   const [form, setForm] = useState({
